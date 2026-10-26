@@ -291,11 +291,19 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   galaxy.frustumCulled = false;
   galaxy.renderOrder = -2;
 
+  // Polar axis sits in the upper sky, fixed to the camera's view. Spinning
+  // the rotor around it is the diurnal turn: stars wheel, they don't translate.
+  const pole = new THREE.Vector3(-0.1, 0.34, -1).normalize();
   const sky = new THREE.Group();
-  sky.add(galaxy, ...points);
-  sky.rotation.order = 'YXZ';
-  sky.rotation.x = 0.62;
-  sky.rotation.z = 0.18;
+  sky.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pole);
+
+  const rotor = new THREE.Group();
+  sky.add(rotor);
+
+  const pose = new THREE.Group();
+  pose.rotation.set(0.62, 0, 0.18);
+  rotor.add(pose);
+  pose.add(galaxy, ...points);
 
   let mode = 'shader';
   let fallback = null;
@@ -309,7 +317,7 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   function sampleDate(now) {
     if (animDur <= 0) return dateAngle;
     const t = Math.min(1, (now - animStart) / animDur);
-    const eased = 1 - (1 - t) ** 3;
+    const eased = t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
     const value = animFrom + (animTo - animFrom) * eased;
     if (t >= 1) {
       dateAngle = animTo;
@@ -357,16 +365,16 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
     advance(deltaMs, now) {
       const days = deltaMs / 86400000;
       if (!Number.isFinite(days) || Math.abs(days) < 1 / 86400) return;
-      // One solar day shifts the stars by about a degree. Scale that so a
-      // single day is a clear arc, and cap a long jump so the sky never spins.
-      const dayTurn = THREE.MathUtils.degToRad(22);
-      const cap = THREE.MathUtils.degToRad(40);
+      // One civil day is one readable turn of the sphere around the pole.
+      // A long jump stays inside a single wheel so the dome never whirls.
+      const dayTurn = THREE.MathUtils.degToRad(108);
+      const cap = THREE.MathUtils.degToRad(132);
       const delta = Math.max(-cap, Math.min(cap, days * dayTurn));
       const from = sampleDate(now);
       animFrom = from;
       animTo = from + delta;
       animStart = now;
-      animDur = reducedMotion ? 0 : Math.min(780, Math.max(420, (Math.abs(delta) / dayTurn) * 700));
+      animDur = reducedMotion ? 0 : Math.min(1200, Math.max(760, (Math.abs(delta) / dayTurn) * 1080));
       if (animDur === 0) {
         dateAngle = animTo;
         return;
@@ -375,7 +383,7 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
     update(now) {
       const seconds = now * 0.001;
       if (mode === 'shader') material.uniforms.uTime.value = seconds;
-      sky.rotation.y = seconds * idleRate + sampleDate(now);
+      rotor.rotation.y = seconds * idleRate + sampleDate(now);
     },
   };
 }
