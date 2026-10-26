@@ -162,7 +162,7 @@ void main() {
   if (r2 > 0.25) discard;
   float r = sqrt(r2) * 2.0;
   float halo = clamp(vHalo, 0.0, 1.0);
-  float core = exp(-r * r * mix(7.5, 16.0, halo));
+  float core = exp(-r * r * mix(22.0, 13.0, halo));
   float wing = exp(-r * r * 3.3) * smoothstep(0.06, 0.6, halo);
   float veil = exp(-r * r * 1.15) * smoothstep(0.4, 0.9, halo);
   float alpha = clamp((core + wing * 0.4 + veil * 0.16) * vFlicker, 0.0, 1.0);
@@ -214,31 +214,30 @@ void main() {
   // Galactic latitude. Noise is on the direction, so the band does not stretch at the poles.
   float lat = dot(dir, normalize(vec3(0.22, 0.91, 0.18)));
 
-  float lift = noise(dir * 0.85 + 0.6);
-  float grade = smoothstep(-0.55, 0.9, dir.y * 0.35 + dir.x * 0.25 + lift * 0.4);
-  vec3 sky = mix(vec3(0.012, 0.028, 0.058), vec3(0.035, 0.062, 0.105), grade);
+  vec3 sky = vec3(0.0);
 
   // Soft nebula: a few cool-blue masses, with a faint magenta only inside them.
   float broad = noise(dir * 1.65 + 1.3);
   float puff = noise(dir * 3.35 + 4.8);
   float wisp = noise(dir * 6.6 + 2.2);
-  float mass = smoothstep(0.42, 0.8, broad * 0.62 + puff * 0.38);
-  float veil = smoothstep(0.5, 0.9, puff);
-  vec3 blue = vec3(0.07, 0.16, 0.32);
-  vec3 magenta = vec3(0.15, 0.06, 0.18);
-  vec3 neb = mix(blue, magenta, smoothstep(0.4, 0.82, wisp) * 0.45);
-  sky += neb * (mass * 0.5 + veil * mass * 0.16);
+  // Only the denser peaks, so most of the dome stays black.
+  float mass = smoothstep(0.58, 0.88, broad * 0.55 + puff * 0.45);
+  float veil = smoothstep(0.64, 0.92, puff);
+  vec3 blue = vec3(0.08, 0.18, 0.36);
+  vec3 magenta = vec3(0.16, 0.06, 0.2);
+  vec3 neb = mix(blue, magenta, smoothstep(0.45, 0.85, wisp) * 0.4);
+  sky += neb * mass * (0.62 + veil * 0.22);
 
-  // Milky Way: wide shoulder, brighter core, mottling, dark dust lanes.
-  float shoulder = exp(-lat * lat * 6.2);
-  float core = exp(-lat * lat * 24.0);
+  // A band, not a sky-wide wash: mottled, with dark dust lanes and a brighter core.
+  float shoulder = exp(-lat * lat * 18.0);
+  float core = exp(-lat * lat * 42.0);
   float mott = noise(dir * 2.8 + 0.4);
   float grain = noise(dir * 6.2 + 3.1);
-  float lanes = smoothstep(0.3, 0.78, mott);
-  float dust = smoothstep(0.26, 0.7, grain);
-  float mw = shoulder * (0.22 + 0.78 * lanes) * (1.0 - 0.58 * dust) + core * (0.4 + 0.45 * lanes);
-  vec3 mwCol = mix(vec3(0.22, 0.26, 0.4), vec3(0.5, 0.48, 0.46), core);
-  sky += mwCol * mw * 0.2;
+  float lanes = smoothstep(0.34, 0.8, mott);
+  float dust = smoothstep(0.28, 0.72, grain);
+  float mw = shoulder * (0.2 + 0.8 * lanes) * (1.0 - 0.62 * dust) + core * (0.45 + 0.4 * lanes);
+  vec3 mwCol = mix(vec3(0.2, 0.24, 0.38), vec3(0.48, 0.46, 0.42), core);
+  sky += mwCol * mw * 0.34;
 
   sky *= uFade;
   gl_FragColor = vec4(sky, 1.0);

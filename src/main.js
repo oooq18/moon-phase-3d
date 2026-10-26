@@ -183,7 +183,7 @@ function boot(gl) {
   gl.setSize(window.innerWidth, window.innerHeight, false);
   gl.outputColorSpace = THREE.SRGBColorSpace;
   gl.toneMapping = THREE.NoToneMapping;
-  gl.setClearColor(0x071422, 1);
+  gl.setClearColor(0x000000, 1);
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 2400);
@@ -429,8 +429,8 @@ function paintSharePlate(ctx, width, height, caption, originX = 0) {
     height * 0.4,
     Math.max(width, height) * 0.72,
   );
-  vignette.addColorStop(0, 'rgba(5, 7, 13, 0)');
-  vignette.addColorStop(1, 'rgba(5, 7, 13, 0.28)');
+  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  vignette.addColorStop(1, 'rgba(0, 0, 0, 0.28)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, width, height);
 

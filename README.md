@@ -37,7 +37,7 @@ The light vector is not a hard-coded phase angle. It is the Sun’s direction in
 
 中秋 is the Shanghai civil date of 农历八月十五: lunar months are numbered from the winter solstice, and a thirteenth month makes the first month without a 中气 a leap month. Leap eighth months are not the festival.
 
-The sky is one dome behind every moon: a deep navy gradient, soft blue nebula with a little magenta, and a Milky Way band with mottling and dust lanes. Stars are three additive shells. Most are faint and warm; only the bright ones carry a small glow. The shells slip against each other when the date turns. Each moon has a thin night-blue limb so the disk sits in that sky. 双月 uses that one sky behind both moons.
+The sky is one black dome behind every moon. Soft blue nebula, a little magenta, and a Milky Way band with mottling and dust lanes sit on that black. Stars are three additive shells. Most are faint and warm; only the bright ones carry a small glow. The shells slip against each other when the date turns. 双月 uses that one sky behind both moons.
 
 ## NASA assets
 

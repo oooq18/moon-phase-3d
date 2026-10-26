@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  --bg: #05070d;
+  --bg: #000000;
   --ink: rgba(236, 240, 246, 0.92);
   --whisper: rgba(232, 236, 243, 0.8);
   --muted: rgba(232, 236, 243, 0.48);
@@ -21,7 +21,7 @@ html,
 body {
   margin: 0;
   height: 100%;
-  background: #05070d;
+  background: #000000;
   color: var(--whisper);
   font-family: var(--sans);
   overflow: hidden;
@@ -48,7 +48,7 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  background: radial-gradient(ellipse at 50% 42%, transparent 62%, rgba(5, 8, 16, 0.05) 82%, rgba(5, 8, 16, 0.2) 100%);
+  background: radial-gradient(ellipse at 50% 42%, transparent 62%, rgba(0, 0, 0, 0.05) 82%, rgba(0, 0, 0, 0.22) 100%);
 }
 
 .grain {
