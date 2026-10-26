@@ -31,7 +31,9 @@ function kelvinToRgb(kelvin) {
 }
 
 function sampleMagnitude(rand, faint, bright) {
-  const k = 0.46;
+  // Cumulative counts rise steeply toward faint magnitudes, so a shell
+  // is mostly dust with only a few stars near its bright end.
+  const k = 0.6;
   const a = 10 ** (k * bright);
   const b = 10 ** (k * faint);
   return Math.log10(a + rand() * (b - a)) / k;
@@ -56,11 +58,14 @@ function spectralKelvin(rand, magnitude) {
 
 function starTint(rand, magnitude) {
   const [r, g, b] = kelvinToRgb(spectralKelvin(rand, magnitude));
-  const sat = 0.36 + rand() * 0.08;
-  const nr = 0.8;
-  const ng = 0.85;
-  const nb = 0.93;
-  return [r * sat + nr * (1 - sat), g * sat + ng * (1 - sat), b * sat + nb * (1 - sat)];
+  // Bright stars keep a cool or warm tint. Faint ones fall back toward white,
+  // the way scotopic vision washes color out of the field.
+  const sat = magnitude < 1 ? 0.8 : magnitude < 2.6 ? 0.52 : magnitude < 4.4 ? 0.3 : 0.14;
+  const s = Math.min(0.92, Math.max(0.08, sat + (rand() - 0.5) * 0.06));
+  const nr = 0.84;
+  const ng = 0.86;
+  const nb = 0.92;
+  return [r * s + nr * (1 - s), g * s + ng * (1 - s), b * s + nb * (1 - s)];
 }
 
 function fluxGain(magnitude) {
@@ -69,14 +74,14 @@ function fluxGain(magnitude) {
 }
 
 function pointSize(magnitude) {
-  const t = Math.min(1, Math.max(0, (magnitude + 1.35) / 8));
-  return 1.2 + 6.4 * (1 - t) ** 1.7;
+  const t = Math.min(1, Math.max(0, (magnitude + 1.4) / 8.4));
+  return 0.9 + 7.6 * (1 - t) ** 2.45;
 }
 
 function haloAmount(magnitude) {
-  if (magnitude > 1.6) return 0;
-  if (magnitude > 0.4) return 0.22;
-  return 0.4;
+  if (magnitude > 2.3) return 0;
+  const u = Math.min(1, Math.max(0, (2.3 - magnitude) / 3.5));
+  return u * u;
 }
 
 function placeOnSphere(rand, radius) {
@@ -84,6 +89,37 @@ function placeOnSphere(rand, radius) {
   const theta = rand() * Math.PI * 2;
   const ring = Math.sqrt(Math.max(0, 1 - z * z));
   return [radius * ring * Math.cos(theta), radius * z, radius * ring * Math.sin(theta)];
+}
+
+// Same axis the Milky Way shader uses, so faint stars can gather in the band.
+const BAND = [0.22, 0.91, 0.18];
+
+function placeInBand(rand, radius, spread) {
+  const len = Math.hypot(BAND[0], BAND[1], BAND[2]);
+  const n = [BAND[0] / len, BAND[1] / len, BAND[2] / len];
+  const up = Math.abs(n[1]) < 0.85 ? [0, 1, 0] : [1, 0, 0];
+  let t1 = [
+    up[1] * n[2] - up[2] * n[1],
+    up[2] * n[0] - up[0] * n[2],
+    up[0] * n[1] - up[1] * n[0],
+  ];
+  const t1l = Math.hypot(t1[0], t1[1], t1[2]);
+  t1 = [t1[0] / t1l, t1[1] / t1l, t1[2] / t1l];
+  const t2 = [
+    n[1] * t1[2] - n[2] * t1[1],
+    n[2] * t1[0] - n[0] * t1[2],
+    n[0] * t1[1] - n[1] * t1[0],
+  ];
+  const height = Math.max(-0.9, Math.min(0.9, (rand() + rand() + rand() - 1.5) * spread));
+  const theta = rand() * Math.PI * 2;
+  const ring = Math.sqrt(Math.max(0, 1 - height * height));
+  const c = Math.cos(theta);
+  const s = Math.sin(theta);
+  return [
+    radius * (n[0] * height + ring * (c * t1[0] + s * t2[0])),
+    radius * (n[1] * height + ring * (c * t1[1] + s * t2[1])),
+    radius * (n[2] * height + ring * (c * t1[2] + s * t2[2])),
+  ];
 }
 
 const vertexShader = /* glsl */ `
@@ -110,7 +146,7 @@ void main() {
   vColor = color * uFade * falloff;
   float atten = clamp(pow(200.0 / dist, 0.92), 0.36, 2.7);
   float layer = mix(1.24, 0.74, clamp(aDepth, 0.0, 1.0));
-  gl_PointSize = clamp(aSize * atten * layer * uPixelRatio * flick, 0.5, 7.4 * uPixelRatio);
+  gl_PointSize = clamp(aSize * atten * layer * uPixelRatio * flick, 0.45, 12.0 * uPixelRatio);
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -125,9 +161,11 @@ void main() {
   float r2 = dot(q, q);
   if (r2 > 0.25) discard;
   float r = sqrt(r2) * 2.0;
-  float core = exp(-r * r * mix(16.0, 10.0, clamp(vHalo, 0.0, 1.0)));
-  float wing = exp(-r * r * 4.6) * smoothstep(0.18, 0.55, vHalo);
-  float alpha = clamp((core + wing * 0.16) * vFlicker, 0.0, 1.0);
+  float halo = clamp(vHalo, 0.0, 1.0);
+  float core = exp(-r * r * mix(26.0, 14.0, halo));
+  float wing = exp(-r * r * 3.3) * smoothstep(0.06, 0.6, halo);
+  float veil = exp(-r * r * 1.15) * smoothstep(0.4, 0.9, halo);
+  float alpha = clamp((core + wing * 0.4 + veil * 0.16) * vFlicker, 0.0, 1.0);
   if (alpha < 0.012) discard;
   gl_FragColor = vec4(vColor, alpha);
 }
@@ -174,13 +212,19 @@ float noise(vec3 p) {
 void main() {
   vec3 dir = normalize(vDir);
   float lat = dir.x * 0.22 + dir.y * 0.91 + dir.z * 0.18;
-  float ribbon = exp(-lat * lat * 26.0);
-  float clumps = noise(dir * 4.2);
-  float fine = noise(dir * 9.5 + 4.0);
-  float lanes = smoothstep(0.22, 0.72, clumps);
-  float dust = smoothstep(0.62, 0.28, fine);
-  float alpha = ribbon * lanes * (0.36 + 0.64 * dust) * 0.075 * uFade;
-  vec3 col = vec3(0.52, 0.6, 0.72);
+  float ribbon = exp(-lat * lat * 46.0);
+  float shoulder = exp(-lat * lat * 12.0);
+  float clumps = noise(dir * 3.2);
+  float fine = noise(dir * 8.2 + 3.0);
+  float grain = noise(dir * 15.0 + 1.7);
+  float clouds = smoothstep(0.18, 0.8, clumps);
+  float dust = smoothstep(0.7, 0.24, fine);
+  float knots = smoothstep(0.58, 0.9, grain);
+  float band = ribbon * 0.85 + shoulder * 0.32;
+  float alpha = band * clouds * (0.2 + 0.8 * dust) * (0.045 + 0.04 * knots) * uFade;
+  vec3 cool = vec3(0.42, 0.52, 0.76);
+  vec3 warm = vec3(0.78, 0.66, 0.5);
+  vec3 col = mix(cool, warm, clamp(ribbon * (0.3 + 0.7 * dust), 0.0, 1.0));
   gl_FragColor = vec4(col, alpha);
 }
 `;
@@ -195,6 +239,8 @@ function fillPopulation(rand, count, spec) {
     sizeScale = 1,
     haloScale = 1,
     dim = 1,
+    plane = 0,
+    spread = 0.16,
   } = spec;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
@@ -207,7 +253,9 @@ function fillPopulation(rand, count, spec) {
   for (let i = 0; i < count; i += 1) {
     const u = rand();
     const radius = radiusMin + (u * u) * (radiusMax - radiusMin);
-    const [x, y, z] = placeOnSphere(rand, radius);
+    const [x, y, z] = plane > 0 && rand() < plane
+      ? placeInBand(rand, radius, spread)
+      : placeOnSphere(rand, radius);
     positions[i * 3] = x;
     positions[i * 3 + 1] = y;
     positions[i * 3 + 2] = z;
@@ -296,9 +344,9 @@ function circleTexture() {
 export function createStars({ reducedMotion = false, mobile = false } = {}) {
   const rand = mulberry32(0x5f3759df);
   const populations = [
-    { count: mobile ? 11000 : 19000, radiusMin: 480, radiusMax: 820, magMin: 4.8, magMax: 6.9, depth: 1, sizeScale: 0.62, haloScale: 0, dim: 0.5, parallax: 0.84 },
-    { count: mobile ? 2800 : 5000, radiusMin: 230, radiusMax: 360, magMin: 2.2, magMax: 5.1, depth: 0.46, sizeScale: 1, haloScale: 0.2, dim: 0.8, parallax: 1 },
-    { count: mobile ? 320 : 520, radiusMin: 112, radiusMax: 176, magMin: -1.5, magMax: 1.9, depth: 0, sizeScale: 1.35, haloScale: 1, dim: 1, parallax: 1.16 },
+    { count: mobile ? 12000 : 20000, radiusMin: 500, radiusMax: 820, magMin: 5.3, magMax: 7.3, depth: 1, sizeScale: 0.72, haloScale: 0, dim: 0.52, parallax: 0.84, plane: 0.58, spread: 0.13 },
+    { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 2.9, magMax: 5.6, depth: 0.48, sizeScale: 0.92, haloScale: 0.22, dim: 0.76, parallax: 1, plane: 0.2, spread: 0.22 },
+    { count: mobile ? 72 : 128, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.15, haloScale: 1, dim: 1, parallax: 1.16, plane: 0.06, spread: 0.3 },
   ];
 
   const material = new THREE.ShaderMaterial({
@@ -339,7 +387,7 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
     blending: THREE.NormalBlending,
     side: THREE.BackSide,
   });
-  const galaxy = new THREE.Mesh(new THREE.SphereGeometry(960, 48, 32), galaxyMaterial);
+  const galaxy = new THREE.Mesh(new THREE.SphereGeometry(900, 48, 32), galaxyMaterial);
   galaxy.frustumCulled = false;
   galaxy.renderOrder = -2;
   shells[0].add(galaxy);

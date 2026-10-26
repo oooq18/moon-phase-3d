@@ -224,18 +224,8 @@ function slerpDir(a, b, t) {
     .normalize();
 }
 
-export function createMoon(renderer) {
-  const base = import.meta.env.BASE_URL;
-  const loader = new THREE.TextureLoader();
-  const loadTexture = (url) =>
-    new Promise((resolve, reject) => {
-      loader.load(url, resolve, undefined, () => reject(new Error(url)));
-    });
-  const colorLoad = loadTexture(`${base}assets/moon/lroc_color.jpg`);
-  const bumpLoad = loadTexture(`${base}assets/moon/ldem_bump.png`);
-
-  const geometry = new THREE.SphereGeometry(MOON_RADIUS, 256, 128);
-  const uniforms = {
+function makeUniforms() {
+  return {
     uMap: { value: placeholderTexture() },
     uDisp: { value: placeholderTexture() },
     uHasMap: { value: 0 },
@@ -248,50 +238,152 @@ export function createMoon(renderer) {
     uColorTexel: { value: new THREE.Vector2(1 / 4096, 1 / 2048) },
     uBump: { value: 2.6 },
   };
+}
 
-  const material = new THREE.ShaderMaterial({
-    uniforms,
-    vertexShader,
-    fragmentShader,
-    toneMapped: false,
-  });
+export function createMoon(renderer) {
+  const base = import.meta.env.BASE_URL;
+  const loader = new THREE.TextureLoader();
+  const loadTexture = (url) =>
+    new Promise((resolve, reject) => {
+      loader.load(url, resolve, undefined, () => reject(new Error(url)));
+    });
+  const colorLoad = loadTexture(`${base}assets/moon/lroc_color.jpg`);
+  const bumpLoad = loadTexture(`${base}assets/moon/ldem_bump.png`);
 
-  const mesh = new THREE.Mesh(geometry, material);
+  const geometry = new THREE.SphereGeometry(MOON_RADIUS, 256, 128);
   // NASA maps are centered on longitude 0°. Sphere u=0.5 sits on +X;
   // a −90° yaw brings the nearside to the camera on +Z.
   const BASE_YAW = -Math.PI / 2;
-  mesh.rotation.y = BASE_YAW;
-  mesh.visible = false;
-
-  const anchor = new THREE.Group();
-  anchor.add(mesh);
-
   let mapReady = false;
   let failed = false;
-  let sawIntro = false;
-  let lateFadeStart = null;
+
+  function makeBody() {
+    const uniforms = makeUniforms();
+    const material = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader,
+      fragmentShader,
+      toneMapped: false,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.y = BASE_YAW;
+    mesh.visible = false;
+    const anchor = new THREE.Group();
+    anchor.add(mesh);
+
+    let sawIntro = false;
+    let lateFadeStart = null;
+    let fromDir = new THREE.Vector3(0, 0, 1);
+    let toDir = new THREE.Vector3(0, 0, 1);
+    let currentDir = new THREE.Vector3(0, 0, 1);
+    let lerpStart = 0;
+    let lerping = false;
+    let lerpMs = 680;
+    let lerpSettle = 'even';
+
+    function phaseEase(t) {
+      if (lerpSettle !== 'late') return easeInOutCubic(t);
+      const u = Math.min(1, Math.max(0, (t - 0.42) / 0.58));
+      return easeInOutCubic(u);
+    }
+
+    function paintLight() {
+      yawLockedLight(currentDir, mesh.rotation.y - BASE_YAW, uniforms.uLightDir.value);
+    }
+
+    function setSunDirection(dir, { immediate = false, duration = 680, now = performance.now(), settle = 'even' } = {}) {
+      const next = new THREE.Vector3(dir.x, dir.y, dir.z);
+      if (next.lengthSq() < 1e-8) return;
+      next.normalize();
+      if (immediate || duration <= 0) {
+        currentDir.copy(next);
+        fromDir.copy(next);
+        toDir.copy(next);
+        lerping = false;
+        paintLight();
+        return;
+      }
+      fromDir.copy(currentDir);
+      toDir.copy(next);
+      lerpStart = now;
+      lerpMs = duration;
+      lerpSettle = settle === 'late' ? 'late' : 'even';
+      lerping = true;
+    }
+
+    function update(now, reveal) {
+      mesh.rotation.y = BASE_YAW;
+
+      if (lerping) {
+        const t = Math.min(1, (now - lerpStart) / lerpMs);
+        currentDir.copy(slerpDir(fromDir, toDir, phaseEase(t)));
+        if (t >= 1) lerping = false;
+      }
+      paintLight();
+
+      if (!mapReady && !failed) {
+        mesh.visible = false;
+        uniforms.uReveal.value = 0;
+        return;
+      }
+
+      if (failed) {
+        mesh.visible = true;
+        uniforms.uReveal.value = reveal;
+        return;
+      }
+
+      if (reveal < 0.999) {
+        sawIntro = true;
+        mesh.visible = reveal > 0.001;
+        uniforms.uReveal.value = reveal;
+        return;
+      }
+
+      if (sawIntro) {
+        mesh.visible = true;
+        uniforms.uReveal.value = 1;
+        return;
+      }
+
+      if (lateFadeStart == null) lateFadeStart = now;
+      const fade = Math.min(1, (now - lateFadeStart) / 800);
+      mesh.visible = true;
+      uniforms.uReveal.value = easeInOutCubic(fade);
+    }
+
+    return { anchor, uniforms, setSunDirection, update };
+  }
+
+  const moons = [makeBody(), makeBody()];
+  moons[1].anchor.visible = false;
 
   const assets = Promise.allSettled([colorLoad, bumpLoad]).then(([colorResult, dispResult]) => {
+    const sets = moons.map((moon) => moon.uniforms);
     if (colorResult.status === 'fulfilled') {
       const texture = prepTexture(colorResult.value, renderer);
-      uniforms.uMap.value = texture;
-      uniforms.uHasMap.value = 1;
-      uniforms.uMapMix.value = 1;
-      if (texture.image?.width && texture.image?.height) {
-        uniforms.uColorTexel.value.set(1 / texture.image.width, 1 / texture.image.height);
+      for (const uniforms of sets) {
+        uniforms.uMap.value = texture;
+        uniforms.uHasMap.value = 1;
+        uniforms.uMapMix.value = 1;
+        if (texture.image?.width && texture.image?.height) {
+          uniforms.uColorTexel.value.set(1 / texture.image.width, 1 / texture.image.height);
+        }
       }
       mapReady = true;
     } else {
       failed = true;
-      uniforms.uFallback.value = 1;
+      for (const uniforms of sets) uniforms.uFallback.value = 1;
     }
 
     if (dispResult.status === 'fulfilled') {
       const texture = prepTexture(dispResult.value, renderer);
-      uniforms.uDisp.value = texture;
-      uniforms.uHasDisp.value = 1;
-      if (texture.image?.width && texture.image?.height) {
-        uniforms.uDispTexel.value.set(1 / texture.image.width, 1 / texture.image.height);
+      for (const uniforms of sets) {
+        uniforms.uDisp.value = texture;
+        uniforms.uHasDisp.value = 1;
+        if (texture.image?.width && texture.image?.height) {
+          uniforms.uDispTexel.value.set(1 / texture.image.width, 1 / texture.image.height);
+        }
       }
     } else if (!failed) {
       failed = false;
@@ -300,90 +392,9 @@ export function createMoon(renderer) {
     return { color: !failed && mapReady, displacement: dispResult.status === 'fulfilled', fallback: !mapReady };
   });
 
-  let fromDir = new THREE.Vector3(0, 0, 1);
-  let toDir = new THREE.Vector3(0, 0, 1);
-  let currentDir = new THREE.Vector3(0, 0, 1);
-  let lerpStart = 0;
-  let lerping = false;
-  let lerpMs = 680;
-  let lerpSettle = 'even';
-
-  function phaseEase(t) {
-    if (lerpSettle !== 'late') return easeInOutCubic(t);
-    const u = Math.min(1, Math.max(0, (t - 0.42) / 0.58));
-    return easeInOutCubic(u);
-  }
-
-  function paintLight() {
-    yawLockedLight(currentDir, mesh.rotation.y - BASE_YAW, uniforms.uLightDir.value);
-  }
-
-  function setSunDirection(dir, { immediate = false, duration = 680, now = performance.now(), settle = 'even' } = {}) {
-    const next = new THREE.Vector3(dir.x, dir.y, dir.z);
-    if (next.lengthSq() < 1e-8) return;
-    next.normalize();
-    if (immediate || duration <= 0) {
-      currentDir.copy(next);
-      fromDir.copy(next);
-      toDir.copy(next);
-      lerping = false;
-      paintLight();
-      return;
-    }
-    fromDir.copy(currentDir);
-    toDir.copy(next);
-    lerpStart = now;
-    lerpMs = duration;
-    lerpSettle = settle === 'late' ? 'late' : 'even';
-    lerping = true;
-  }
-
-  function update(now, reveal) {
-    mesh.rotation.y = BASE_YAW;
-
-    if (lerping) {
-      const t = Math.min(1, (now - lerpStart) / lerpMs);
-      currentDir.copy(slerpDir(fromDir, toDir, phaseEase(t)));
-      if (t >= 1) lerping = false;
-    }
-    paintLight();
-
-    if (!mapReady && !failed) {
-      mesh.visible = false;
-      uniforms.uReveal.value = 0;
-      return;
-    }
-
-    if (failed) {
-      mesh.visible = true;
-      uniforms.uReveal.value = reveal;
-      return;
-    }
-
-    if (reveal < 0.999) {
-      sawIntro = true;
-      mesh.visible = reveal > 0.001;
-      uniforms.uReveal.value = reveal;
-      return;
-    }
-
-    if (sawIntro) {
-      mesh.visible = true;
-      uniforms.uReveal.value = 1;
-      return;
-    }
-
-    if (lateFadeStart == null) lateFadeStart = now;
-    const fade = Math.min(1, (now - lateFadeStart) / 800);
-    mesh.visible = true;
-    uniforms.uReveal.value = easeInOutCubic(fade);
-  }
-
   return {
-    anchor,
     radius: MOON_RADIUS,
     assets,
-    setSunDirection,
-    update,
+    moons,
   };
 }

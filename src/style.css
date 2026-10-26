@@ -276,6 +276,172 @@ body {
   opacity: 0.28;
 }
 
+.identity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.identity[hidden] {
+  display: none !important;
+}
+
+.identity span.is-active {
+  color: var(--ink);
+}
+
+.dock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(40rem, 100%);
+}
+
+.mode-switch {
+  display: inline-flex;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.mode-switch button {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(232, 236, 243, 0.62);
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  padding: 0 18px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.mode-switch button + button {
+  box-shadow: inset 1px 0 0 var(--line);
+}
+
+.mode-switch button[aria-checked="true"] {
+  color: var(--ink);
+  background: rgba(232, 236, 243, 0.08);
+}
+
+.mode-switch button:focus-visible {
+  outline: 1px solid rgba(186, 198, 214, 0.8);
+  outline-offset: -2px;
+}
+
+.people {
+  display: flex;
+  gap: 8px;
+  width: min(40rem, 100%);
+  justify-content: center;
+}
+
+.people[data-mode="single"] {
+  width: auto;
+}
+
+.people[data-mode="single"] #person-1,
+.people[data-mode="single"] .person-pick {
+  display: none;
+}
+
+.person {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.people[data-mode="single"] .person {
+  flex: 0 0 auto;
+  width: 9rem;
+}
+
+.person.is-active {
+  border-color: var(--line-strong);
+}
+
+.name-field,
+.person-pick {
+  appearance: none;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  height: 36px;
+  min-width: 0;
+}
+
+.name-field {
+  width: 5.2rem;
+  padding: 0 10px;
+  color-scheme: dark;
+}
+
+.people[data-mode="single"] .name-field {
+  width: 100%;
+  text-align: center;
+}
+
+.name-field::placeholder {
+  color: var(--faint);
+}
+
+.person-pick {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 10px 0 0;
+  cursor: pointer;
+  color: rgba(232, 236, 243, 0.72);
+  box-shadow: inset 1px 0 0 var(--line);
+}
+
+.person.is-active .person-pick {
+  color: var(--ink);
+}
+
+.person-side {
+  color: var(--faint);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+}
+
+.person-when {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.person-pick:focus-visible,
+.name-field:focus-visible {
+  outline: 1px solid rgba(186, 198, 214, 0.8);
+  outline-offset: -2px;
+  position: relative;
+  z-index: 1;
+}
+
 .cluster {
   display: inline-flex;
   align-items: stretch;
@@ -462,6 +628,44 @@ button[hidden] {
     font-size: 0.86rem;
   }
 
+  .identity {
+    margin-top: 6px;
+    font-size: 0.66rem;
+    gap: 4px 12px;
+  }
+
+  .dock {
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .mode-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    height: 40px;
+  }
+
+  .mode-switch button {
+    height: 40px;
+  }
+
+  .people {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .person,
+  .name-field,
+  .person-pick {
+    height: 44px;
+  }
+
+  .people[data-mode="single"] .person {
+    width: 100%;
+  }
+
   .cluster {
     display: flex;
     flex-direction: column;
@@ -537,7 +741,7 @@ button[hidden] {
   .hud {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "caption metrics cluster";
+    grid-template-areas: "caption metrics dock";
     align-items: end;
     column-gap: 16px;
     row-gap: 8px;
@@ -589,8 +793,23 @@ button[hidden] {
     font-size: 0.75rem;
   }
 
+  .identity {
+    display: none;
+  }
+
+  .dock {
+    grid-area: dock;
+    align-items: flex-end;
+    width: auto;
+    max-width: 28rem;
+    gap: 6px;
+  }
+
+  .people {
+    width: 100%;
+  }
+
   .cluster {
-    grid-area: cluster;
     display: inline-flex;
     flex-direction: row;
     align-items: stretch;
@@ -642,7 +861,10 @@ button[hidden] {
   .poem,
   .metrics dd,
   .cluster button,
-  .date-field input {
+  .date-field input,
+  .mode-switch button,
+  .name-field,
+  .person-pick {
     animation: none;
     transition: none;
   }

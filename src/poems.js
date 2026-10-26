@@ -102,12 +102,36 @@ export const PHASE_POEMS = {
   ],
 };
 
-export function poemForPhase(name, avoidText) {
-  const list = PHASE_POEMS[name];
+/**
+ * Lines written for 中秋 itself. Used only on 农历八月十五,
+ * in place of the phase pools.
+ */
+export const MID_AUTUMN_POEMS = [
+  { text: '明月几时有，把酒问青天', author: '苏轼' },
+  { text: '起舞弄清影，何似在人间', author: '苏轼' },
+  { text: '不应有恨，何事长向别时圆', author: '苏轼' },
+  { text: '但愿人长久，千里共婵娟', author: '苏轼' },
+  { text: '暮云收尽溢清寒，银汉无声转玉盘', author: '苏轼' },
+  { text: '此生此夜不长好，明月明年何处看', author: '苏轼' },
+  { text: '今夜月明人尽望，不知秋思落谁家', author: '王建' },
+  { text: '一轮秋影转金波，飞镜又重磨', author: '辛弃疾' },
+  { text: '乘风好去，长空万里，直下看山河', author: '辛弃疾' },
+  { text: '斫去桂婆娑，人道是清光更多', author: '辛弃疾' },
+];
+
+function pickPoem(list, avoidText) {
   if (!list?.length) return null;
   let index = Math.floor(Math.random() * list.length);
   if (avoidText && list.length > 1 && list[index].text === avoidText) {
     index = (index + 1 + Math.floor(Math.random() * (list.length - 1))) % list.length;
   }
   return list[index];
+}
+
+export function poemForPhase(name, avoidText) {
+  return pickPoem(PHASE_POEMS[name], avoidText);
+}
+
+export function poemForMidAutumn(avoidText) {
+  return pickPoem(MID_AUTUMN_POEMS, avoidText);
 }

@@ -110,6 +110,181 @@ export function formatShanghaiMonthDay(date) {
   return `${p.month}月${p.day}日`;
 }
 
+/** Full civil date for a birthday label. No clock or place. */
+export function formatShanghaiYearMonthDay(date) {
+  const p = shanghaiParts(date);
+  return `${p.year}年${p.month}月${p.day}日`;
+}
+
+/**
+ * Major solar terms (中气) name the lunar month that contains them.
+ * Longitude is the Sun's apparent ecliptic longitude.
+ */
+const MAJOR_TERM_MONTH = {
+  330: 1,
+  0: 2,
+  30: 3,
+  60: 4,
+  90: 5,
+  120: 6,
+  150: 7,
+  180: 8,
+  210: 9,
+  240: 10,
+  270: 11,
+  300: 12,
+};
+
+const lunarCache = new Map();
+
+function addDays(date, days) {
+  return new Date(date.getTime() + days * DAY_MS);
+}
+
+function collectNewMoons(start, end) {
+  const moons = [];
+  let cursor = addDays(start, -2);
+  while (cursor.getTime() < end.getTime()) {
+    const hit = Astronomy.SearchMoonPhase(0, cursor, 40);
+    if (!hit) break;
+    const when = hit.date;
+    if (when.getTime() >= start.getTime() && when.getTime() < end.getTime()) moons.push(when);
+    const step = when.getTime() <= cursor.getTime() ? addDays(cursor, 20) : addDays(when, 20);
+    cursor = step;
+  }
+  return moons;
+}
+
+function collectSolstices(start, end) {
+  const found = [];
+  // SearchSunLongitude returns null when the window is wide enough for the
+  // offset to wrap, so scan in short steps instead of one long search.
+  let cursor = addDays(start, -30);
+  while (cursor.getTime() < end.getTime()) {
+    const hit = Astronomy.SearchSunLongitude(270, cursor, 40);
+    if (hit) {
+      const when = hit.date;
+      if (when.getTime() >= start.getTime() && when.getTime() < end.getTime()) {
+        if (found.length === 0 || when.getTime() - found[found.length - 1].getTime() > 100 * DAY_MS) {
+          found.push(when);
+        }
+      }
+      cursor = addDays(when, 300);
+    } else {
+      cursor = addDays(cursor, 20);
+    }
+  }
+  return found;
+}
+
+/**
+ * The 中气 whose Shanghai civil date falls in this lunar month, or null.
+ * Membership is by civil day (UTC+8), the same day the calendar calls 初一.
+ */
+function majorTermLongitude(startMoon, endMoon) {
+  const startDay = shanghaiDayIndex(startMoon);
+  const endDay = shanghaiDayIndex(endMoon);
+  if (!(endDay > startDay)) return null;
+  const opening = addDays(startMoon, -1);
+  const lon = Astronomy.SunPosition(opening).elon;
+  let target = Math.ceil((lon - 1e-4) / 30) * 30;
+  if (target >= 360) target -= 360;
+  const hit = Astronomy.SearchSunLongitude(target, opening, (endDay - startDay) + 3);
+  if (!hit) return null;
+  const termDay = shanghaiDayIndex(hit.date);
+  if (termDay < startDay || termDay >= endDay) return null;
+  return ((Math.round(Astronomy.SunPosition(hit.date).elon / 30) * 30) % 360 + 360) % 360;
+}
+
+function monthIndexFor(moons, instant) {
+  const day = shanghaiDayIndex(instant);
+  let index = -1;
+  for (let i = 0; i < moons.length; i += 1) {
+    if (shanghaiDayIndex(moons[i]) <= day) index = i;
+    else break;
+  }
+  return index;
+}
+
+/**
+ * Chinese lunisolar date for a Shanghai civil day.
+ * Month 11 is the month containing the winter solstice. A thirteenth month
+ * between two such solstices makes the first month without a 中气 a leap month,
+ * named for the month before it. 中秋 is month 8, day 15, and not the leap month.
+ */
+function computeChineseLunar(date) {
+  const dayIndex = shanghaiDayIndex(date);
+  const start = addDays(date, -450);
+  const end = addDays(date, 450);
+  const moons = collectNewMoons(start, end);
+  const solstices = collectSolstices(start, end);
+  let startI = -1;
+  for (let i = 0; i < moons.length; i += 1) {
+    if (shanghaiDayIndex(moons[i]) <= dayIndex) startI = i;
+    else break;
+  }
+  if (startI < 0 || startI + 1 >= moons.length) return null;
+  const day = dayIndex - shanghaiDayIndex(moons[startI]) + 1;
+  const anchors = [];
+  for (const solstice of solstices) {
+    const index = monthIndexFor(moons, solstice);
+    if (index >= 0 && (anchors.length === 0 || anchors[anchors.length - 1] !== index)) {
+      anchors.push(index);
+    }
+  }
+  let from = -1;
+  let to = -1;
+  for (let i = 0; i < anchors.length - 1; i += 1) {
+    if (anchors[i] <= startI && startI < anchors[i + 1]) {
+      from = anchors[i];
+      to = anchors[i + 1];
+      break;
+    }
+  }
+  if (from < 0) return null;
+  const span = to - from;
+  let lastNamed = 10;
+  let leapUsed = false;
+  for (let index = from; index < to; index += 1) {
+    const term = majorTermLongitude(moons[index], moons[index + 1]);
+    let month;
+    let leap = false;
+    if (term != null && MAJOR_TERM_MONTH[term] != null) {
+      month = MAJOR_TERM_MONTH[term];
+      lastNamed = month;
+    } else if (!leapUsed && span >= 13) {
+      leap = true;
+      leapUsed = true;
+      month = lastNamed;
+    } else {
+      month = lastNamed === 12 ? 1 : lastNamed + 1;
+      lastNamed = month;
+    }
+    if (index === startI) return { month, day, leap };
+  }
+  return null;
+}
+
+/** Lunar month, day, and leap flag for the Shanghai civil date. */
+export function chineseLunar(date) {
+  const key = shanghaiDayIndex(date);
+  if (lunarCache.has(key)) return lunarCache.get(key);
+  let value = null;
+  try {
+    value = computeChineseLunar(date);
+  } catch {
+    value = null;
+  }
+  lunarCache.set(key, value);
+  return value;
+}
+
+/** True on 农历八月十五 in Asia/Shanghai. Leap eighth months are not 中秋. */
+export function isMidAutumn(date) {
+  const lunar = chineseLunar(date);
+  return Boolean(lunar && lunar.month === 8 && lunar.day === 15 && !lunar.leap);
+}
+
 export function isSameShanghaiDate(a, b) {
   return formatISODateShanghai(a) === formatISODateShanghai(b);
 }
