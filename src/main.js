@@ -79,7 +79,7 @@ function boot(gl) {
   });
   const stars = createStars({
     reducedMotion: reduceMotion,
-    mobile: window.matchMedia('(max-width: 860px), (pointer: coarse)').matches,
+    mobile: window.matchMedia('(max-width: 720px), (pointer: coarse)').matches,
   });
   stars.setPixelRatio(gl.getPixelRatio());
   scene.add(stars.object);
@@ -95,28 +95,28 @@ function boot(gl) {
   function frameCamera() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const mobile = vw <= 860;
+    const mobile = vw <= 720;
     const shortSide = Math.min(vw, vh);
     const landscapeShort = shortSide <= 520 && vw > vh;
     const brandRect = brand.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    const gap = landscapeShort ? 14 : mobile ? 20 : 36;
+    const gap = landscapeShort ? 36 : mobile ? 64 : 72;
     const topPad = landscapeShort ? 10 : mobile ? 16 : 18;
     const topLimit = Math.max(brandRect.bottom, 0) + topPad;
     let panelTop = panelRect.top;
     const panelLooksUnmeasured = panelRect.height < 24 || panelTop < vh * 0.45;
-    if (panelLooksUnmeasured) panelTop = vh * (mobile ? 0.72 : 0.84);
+    if (panelLooksUnmeasured) panelTop = vh * (mobile ? 0.68 : 0.82);
     const bottomLimit = panelTop - gap;
     const availH = Math.max(88, bottomLimit - topLimit);
     const side = landscapeShort ? 20 : mobile ? 28 : 80;
-    const widthCap = (vw - side * 2) * (landscapeShort ? 0.36 : mobile ? 0.76 : 0.46);
-    const heightCap = availH * (landscapeShort ? 0.8 : mobile ? 0.78 : 0.72);
-    const vhCap = vh * (landscapeShort ? 0.44 : mobile ? 0.48 : 0.5);
+    const widthCap = (vw - side * 2) * (landscapeShort ? 0.36 : mobile ? 0.78 : 0.48);
+    const heightCap = availH * (landscapeShort ? 0.9 : mobile ? 0.94 : 0.9);
+    const vhCap = vh * (landscapeShort ? 0.46 : mobile ? 0.52 : 0.52);
     const targetPx = Math.max(88, Math.min(heightCap, widthCap, vhCap));
     const vFov = THREE.MathUtils.degToRad(camera.fov);
     const tanHalf = Math.tan(vFov / 2);
     const fitDist = (moon.radius * vh) / (tanHalf * targetPx);
-    const freeCenter = topLimit + availH / 2;
+    const freeCenter = bottomLimit - targetPx / 2;
     // Camera stays on the view axis. Shifting the moon in world Y moves it
     // toward the free band above the panel; moving the camera with it would
     // cancel that and leave the disk viewport-centered.

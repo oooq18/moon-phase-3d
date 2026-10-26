@@ -47,14 +47,47 @@ export function mountUI(root, initialDate, onDate) {
     timers.set(el, timer);
   }
 
+  function paintMetric(el, number, unit) {
+    const signature = `${number}\u0000${unit}`;
+    if (el.dataset.signature === signature) return;
+    const apply = () => {
+      el.dataset.signature = signature;
+      el.replaceChildren();
+      const num = document.createElement('span');
+      num.className = 'num';
+      num.textContent = number;
+      el.append(num);
+      if (unit) {
+        const mark = document.createElement('span');
+        mark.className = 'unit';
+        mark.textContent = unit;
+        el.append(mark);
+      }
+      el.classList.remove('is-dim');
+    };
+    const previous = timers.get(el);
+    if (previous) window.clearTimeout(previous);
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !el.dataset.signature) {
+      apply();
+      return;
+    }
+    el.classList.add('is-dim');
+    const timer = window.setTimeout(() => {
+      apply();
+      timers.delete(el);
+    }, 150);
+    timers.set(el, timer);
+  }
+
   function render(info, date) {
     current = new Date(date.getTime());
     fadeText(phaseName, info.name);
     fadeText(when, formatShanghaiWhen(date));
     when.dateTime = date.toISOString();
-    fadeText(age, formatAge(info.ageDays));
-    fadeText(illum, formatIllumination(info.illuminated));
-    fadeText(distance, formatDistanceKm(info.distanceKm));
+    paintMetric(age, info.ageDays.toFixed(1), '天');
+    paintMetric(illum, formatIllumination(info.illuminated).replace('%', ''), '%');
+    paintMetric(distance, formatDistanceKm(info.distanceKm).replace(/\s*km$/, ''), 'km');
     const iso = formatISODateShanghai(date);
     if (dateInput.value !== iso) dateInput.value = iso;
     const showToday = !isSameShanghaiDate(date, new Date());

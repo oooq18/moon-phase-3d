@@ -31,6 +31,7 @@ uniform sampler2D uDisp;
 uniform float uHasMap;
 uniform float uHasDisp;
 uniform float uMapMix;
+uniform float uFallback;
 uniform vec3 uLightDir;
 uniform float uReveal;
 uniform vec2 uDispTexel;
@@ -128,7 +129,7 @@ void main() {
     float hR = texture2D(uDisp, vUv + vec2(uDispTexel.x, 0.0)).r;
     float hU = texture2D(uDisp, vUv + vec2(0.0, uDispTexel.y)).r;
     N = normalize(N - T * (hR - hC) * uBump - B * (hU - hC) * uBump);
-  } else if (uHasMap < 0.5) {
+  } else if (uFallback > 0.5) {
     float e = 0.0016;
     float cC = craterField(vUv);
     float cR = craterField(vUv + vec2(e, 0.0));
@@ -145,7 +146,9 @@ void main() {
   }
   N = normalize(mix(Ng, N, limbMask));
 
-  vec3 albedo = mix(proceduralAlbedo(vUv), photo, clamp(uMapMix, 0.0, 1.0) * step(0.5, uHasMap));
+  vec3 albedo = vec3(0.0);
+  if (uHasMap > 0.5) albedo = photo;
+  else if (uFallback > 0.5) albedo = proceduralAlbedo(vUv);
   albedo *= vec3(0.96, 0.97, 1.0);
 
   vec3 L = normalize(uLightDir);
@@ -164,14 +167,14 @@ void main() {
   vec3 earth = albedo * vec3(0.50, 0.60, 0.78) * night * facing * earthAmp;
 
   vec3 color = lit + earth;
-  vec3 bg = vec3(0.027, 0.043, 0.071);
+  vec3 bg = vec3(0.0235, 0.0353, 0.0627);
   vec3 shown = mix(bg, color, clamp(uReveal, 0.0, 1.0));
   gl_FragColor = linearToOutputTexel(vec4(shown, 1.0));
 }
 `;
 
 function placeholderTexture() {
-  const data = new Uint8Array([128, 128, 128, 255]);
+  const data = new Uint8Array([0, 0, 0, 255]);
   const texture = new THREE.DataTexture(data, 1, 1);
   texture.colorSpace = THREE.NoColorSpace;
   texture.needsUpdate = true;
@@ -204,6 +207,15 @@ function slerpDir(a, b, t) {
 }
 
 export function createMoon(renderer) {
+  const base = import.meta.env.BASE_URL;
+  const loader = new THREE.TextureLoader();
+  const loadTexture = (url) =>
+    new Promise((resolve, reject) => {
+      loader.load(url, resolve, undefined, () => reject(new Error(url)));
+    });
+  const colorLoad = loadTexture(`${base}assets/moon/lroc_color.jpg`);
+  const bumpLoad = loadTexture(`${base}assets/moon/ldem_bump.png`);
+
   const geometry = new THREE.SphereGeometry(MOON_RADIUS, 256, 128);
   const uniforms = {
     uMap: { value: placeholderTexture() },
@@ -211,6 +223,7 @@ export function createMoon(renderer) {
     uHasMap: { value: 0 },
     uHasDisp: { value: 0 },
     uMapMix: { value: 0 },
+    uFallback: { value: 0 },
     uLightDir: { value: new THREE.Vector3(0, 0, 1) },
     uReveal: { value: 0 },
     uDispTexel: { value: new THREE.Vector2(1 / 2048, 1 / 1024) },
@@ -229,35 +242,29 @@ export function createMoon(renderer) {
   // NASA maps are centered on longitude 0°. Sphere u=0.5 sits on +X;
   // a −90° yaw brings the nearside to the camera on +Z.
   mesh.rotation.y = -Math.PI / 2;
+  mesh.visible = false;
 
   const anchor = new THREE.Group();
   anchor.add(mesh);
 
-  const loader = new THREE.TextureLoader();
-  const base = import.meta.env.BASE_URL;
   let mapReady = false;
   let failed = false;
+  let sawIntro = false;
+  let lateFadeStart = null;
 
-  function loadTexture(url) {
-    return new Promise((resolve, reject) => {
-      loader.load(url, resolve, undefined, () => reject(new Error(url)));
-    });
-  }
-
-  const assets = Promise.allSettled([
-    loadTexture(`${base}assets/moon/lroc_color.jpg`),
-    loadTexture(`${base}assets/moon/ldem_bump.png`),
-  ]).then(([colorResult, dispResult]) => {
+  const assets = Promise.allSettled([colorLoad, bumpLoad]).then(([colorResult, dispResult]) => {
     if (colorResult.status === 'fulfilled') {
       const texture = prepTexture(colorResult.value, renderer);
       uniforms.uMap.value = texture;
       uniforms.uHasMap.value = 1;
+      uniforms.uMapMix.value = 1;
       if (texture.image?.width && texture.image?.height) {
         uniforms.uColorTexel.value.set(1 / texture.image.width, 1 / texture.image.height);
       }
       mapReady = true;
     } else {
       failed = true;
+      uniforms.uFallback.value = 1;
     }
 
     if (dispResult.status === 'fulfilled') {
@@ -311,10 +318,36 @@ export function createMoon(renderer) {
       if (t >= 1) lerping = false;
     }
     uniforms.uLightDir.value.copy(currentDir);
-    uniforms.uReveal.value = reveal;
-    if (mapReady && uniforms.uMapMix.value < 1) {
-      uniforms.uMapMix.value = Math.min(1, uniforms.uMapMix.value + 0.016);
+
+    if (!mapReady && !failed) {
+      mesh.visible = false;
+      uniforms.uReveal.value = 0;
+      return;
     }
+
+    if (failed) {
+      mesh.visible = true;
+      uniforms.uReveal.value = reveal;
+      return;
+    }
+
+    if (reveal < 0.999) {
+      sawIntro = true;
+      mesh.visible = reveal > 0.001;
+      uniforms.uReveal.value = reveal;
+      return;
+    }
+
+    if (sawIntro) {
+      mesh.visible = true;
+      uniforms.uReveal.value = 1;
+      return;
+    }
+
+    if (lateFadeStart == null) lateFadeStart = now;
+    const fade = Math.min(1, (now - lateFadeStart) / 800);
+    mesh.visible = true;
+    uniforms.uReveal.value = easeInOutCubic(fade);
   }
 
   return {

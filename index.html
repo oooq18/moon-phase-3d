@@ -10,6 +10,8 @@
       content="以 astronomy-engine 计算东八区此刻的真实月相，并在三维月球上呈现光照。"
     />
     <link rel="icon" href="%BASE_URL%favicon.svg" type="image/svg+xml" />
+    <link rel="preload" as="image" href="%BASE_URL%assets/moon/lroc_color.jpg" />
+    <link rel="preload" as="image" href="%BASE_URL%assets/moon/ldem_bump.png" />
   </head>
   <body>
     <canvas id="scene" aria-hidden="true"></canvas>
@@ -49,19 +51,23 @@
           </div>
         </dl>
         <div class="controls">
-          <button type="button" id="prev">前一天</button>
-          <label class="date-field">
-            <span class="sr-only">选择日期，按北京时间解析</span>
-            <input id="date" type="date" autocomplete="off" />
-          </label>
-          <button type="button" id="next">后一天</button>
-          <button type="button" id="today" hidden>今天</button>
+          <div class="control-nav">
+            <button type="button" id="prev">前一天</button>
+            <label class="date-field">
+              <span class="sr-only">选择日期，按北京时间解析</span>
+              <input id="date" type="date" autocomplete="off" />
+            </label>
+            <button type="button" id="next">后一天</button>
+          </div>
+          <div class="control-extra">
+            <button type="button" id="today" hidden>今天</button>
+            <button type="button" id="credit-toggle" class="credit-toggle" aria-expanded="false" aria-controls="credit-body">
+              版权
+            </button>
+          </div>
         </div>
       </div>
       <footer class="credit">
-        <button type="button" id="credit-toggle" class="credit-toggle" aria-expanded="false" aria-controls="credit-body">
-          版权
-        </button>
         <p id="credit-body" class="credit-body">
           月球色彩与高程：NASA 戈达德太空飞行中心科学可视化工作室，CGI Moon Kit（SVS-4720）。色彩来自月球勘测轨道器相机（LROC），高程来自月球轨道激光高度计（LOLA）。美国政府作品，公有领域。
         </p>
