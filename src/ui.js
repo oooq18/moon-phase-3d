@@ -15,6 +15,7 @@ export function mountUI(root, initialDate, onEvent) {
   const phaseName = root.querySelector('#phase-name');
   const eyebrow = root.querySelector('#eyebrow');
   const poemEl = root.querySelector('#poem');
+  const poemTitle = root.querySelector('#poem-title');
   const poemLine = root.querySelector('#poem-line');
   const poemAuthor = root.querySelector('#poem-author');
   const identity = root.querySelector('#identity');
@@ -101,12 +102,14 @@ export function mountUI(root, initialDate, onEvent) {
   }
 
   function paintPoem(next) {
-    const text = next?.text ?? '';
+    const text = next?.lines?.length ? next.lines.join('\n') : (next?.text ?? '');
+    const title = next?.title ?? '';
     const who = next?.author ?? '';
-    const signature = `${text}\u0000${who}`;
+    const signature = `${title}\u0000${text}\u0000${who}`;
     if (poemEl.dataset.signature === signature) return;
     const apply = () => {
       poemEl.dataset.signature = signature;
+      poemTitle.textContent = title;
       poemLine.textContent = text;
       poemAuthor.textContent = who;
       poemEl.hidden = !text;

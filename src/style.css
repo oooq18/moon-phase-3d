@@ -167,14 +167,33 @@ body {
 
 .poem {
   margin: 12px 0 0;
-  max-width: 34rem;
+  max-width: 36rem;
+  max-height: min(28vh, 16rem);
+  overflow: auto;
   color: rgba(236, 240, 246, 0.74);
   font-family: var(--serif);
   font-size: 0.95rem;
   font-weight: 400;
   letter-spacing: 0.03em;
-  line-height: 1.45;
+  line-height: 1.55;
   text-shadow: 0 1px 16px rgba(5, 7, 13, 0.72);
+}
+
+.poem-title {
+  display: block;
+  margin-bottom: 0.35em;
+  color: rgba(236, 240, 246, 0.5);
+  font-size: 0.78em;
+  letter-spacing: 0.18em;
+}
+
+.poem-title:empty {
+  display: none;
+}
+
+.poem-line {
+  display: block;
+  white-space: pre-line;
 }
 
 .poem[hidden] {
@@ -182,11 +201,13 @@ body {
 }
 
 .poem-author {
+  display: block;
+  margin-top: 0.45em;
   color: var(--faint);
   font-family: var(--sans);
   font-size: 0.72em;
   letter-spacing: 0.14em;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .poem-author::before {
@@ -593,9 +614,10 @@ button[hidden] {
   .poem {
     margin-top: 6px;
     max-width: none;
+    max-height: 6.4rem;
     font-size: 0.78rem;
     letter-spacing: 0.02em;
-    line-height: 1.35;
+    line-height: 1.4;
     text-shadow: none;
   }
 
@@ -775,6 +797,7 @@ button[hidden] {
 
   .poem {
     max-width: 11.5rem;
+    max-height: 3.4rem;
     margin-top: 4px;
     font-size: 0.62rem;
     line-height: 1.3;
