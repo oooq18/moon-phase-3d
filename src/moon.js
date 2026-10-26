@@ -177,6 +177,10 @@ void main() {
   vec3 earth = albedo * vec3(0.46, 0.56, 0.78) * earthNd * earthFill;
   float night = 1.0 - smoothstep(0.02, 0.58, sun);
   vec3 color = lit + earth * night;
+  // The last sliver of the disk takes on the night sky, so the limb is not a cut edge.
+  float grazing = smoothstep(0.26, 0.0, facing);
+  vec3 skyLimb = vec3(0.08, 0.14, 0.26);
+  color = mix(color, mix(color * 0.35, skyLimb, 0.72), pow(grazing, 0.7) * 0.88);
   vec3 bg = vec3(0.0235, 0.0353, 0.0627);
   vec3 shown = mix(bg, color, clamp(uReveal, 0.0, 1.0));
   gl_FragColor = linearToOutputTexel(vec4(shown, 1.0));
@@ -224,6 +228,39 @@ function slerpDir(a, b, t) {
     .normalize();
 }
 
+const haloVertex = /* glsl */ `
+varying vec3 vNormal;
+varying vec3 vWorld;
+void main() {
+  vec4 world = modelMatrix * vec4(position, 1.0);
+  vWorld = world.xyz;
+  vNormal = normalize(mat3(modelMatrix) * normal);
+  gl_Position = projectionMatrix * viewMatrix * world;
+}
+`;
+
+const haloFragment = /* glsl */ `
+uniform vec3 uLightDir;
+uniform float uReveal;
+varying vec3 vNormal;
+varying vec3 vWorld;
+
+void main() {
+  vec3 N = normalize(vNormal);
+  vec3 V = normalize(cameraPosition - vWorld);
+  float mu = clamp(dot(N, V), 0.0, 1.0);
+  // Soft annulus just outside the disk, fading before it covers the maria.
+  float band = smoothstep(0.0, 0.12, mu) * (1.0 - smoothstep(0.2, 0.48, mu));
+  if (band < 0.01) discard;
+  float lit = smoothstep(-0.25, 0.7, dot(N, normalize(uLightDir)));
+  vec3 nightAir = vec3(0.08, 0.15, 0.3);
+  vec3 dayAir = vec3(0.32, 0.36, 0.42);
+  vec3 col = mix(nightAir, dayAir, lit * 0.5);
+  float alpha = band * mix(0.52, 0.68, lit) * clamp(uReveal, 0.0, 1.0);
+  gl_FragColor = linearToOutputTexel(vec4(col, alpha));
+}
+`;
+
 function makeUniforms() {
   return {
     uMap: { value: placeholderTexture() },
@@ -251,6 +288,7 @@ export function createMoon(renderer) {
   const bumpLoad = loadTexture(`${base}assets/moon/ldem_bump.png`);
 
   const geometry = new THREE.SphereGeometry(MOON_RADIUS, 256, 128);
+  const haloGeometry = new THREE.SphereGeometry(MOON_RADIUS * 1.085, 64, 40);
   // NASA maps are centered on longitude 0°. Sphere u=0.5 sits on +X;
   // a −90° yaw brings the nearside to the camera on +Z.
   const BASE_YAW = -Math.PI / 2;
@@ -268,8 +306,25 @@ export function createMoon(renderer) {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.rotation.y = BASE_YAW;
     mesh.visible = false;
+    const halo = new THREE.Mesh(
+      haloGeometry,
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uLightDir: uniforms.uLightDir,
+          uReveal: uniforms.uReveal,
+        },
+        vertexShader: haloVertex,
+        fragmentShader: haloFragment,
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    );
+    halo.renderOrder = 3;
+    halo.visible = false;
     const anchor = new THREE.Group();
     anchor.add(mesh);
+    anchor.add(halo);
 
     let sawIntro = false;
     let lateFadeStart = null;
@@ -324,32 +379,23 @@ export function createMoon(renderer) {
       if (!mapReady && !failed) {
         mesh.visible = false;
         uniforms.uReveal.value = 0;
-        return;
-      }
-
-      if (failed) {
+      } else if (failed) {
         mesh.visible = true;
         uniforms.uReveal.value = reveal;
-        return;
-      }
-
-      if (reveal < 0.999) {
+      } else if (reveal < 0.999) {
         sawIntro = true;
         mesh.visible = reveal > 0.001;
         uniforms.uReveal.value = reveal;
-        return;
-      }
-
-      if (sawIntro) {
+      } else if (sawIntro) {
         mesh.visible = true;
         uniforms.uReveal.value = 1;
-        return;
+      } else {
+        if (lateFadeStart == null) lateFadeStart = now;
+        const fade = Math.min(1, (now - lateFadeStart) / 800);
+        mesh.visible = true;
+        uniforms.uReveal.value = easeInOutCubic(fade);
       }
-
-      if (lateFadeStart == null) lateFadeStart = now;
-      const fade = Math.min(1, (now - lateFadeStart) / 800);
-      mesh.visible = true;
-      uniforms.uReveal.value = easeInOutCubic(fade);
+      halo.visible = mesh.visible;
     }
 
     return { anchor, uniforms, setSunDirection, update };

@@ -193,7 +193,7 @@ function boot(gl) {
   moons = moon.moons;
   for (const body of moons) {
     body.anchor.traverse((obj) => {
-      if (obj.isMesh) obj.renderOrder = 2;
+      if (obj.isMesh && obj.renderOrder < 2) obj.renderOrder = 2;
     });
     scene.add(body.anchor);
   }
@@ -430,7 +430,7 @@ function paintSharePlate(ctx, width, height, caption, originX = 0) {
     Math.max(width, height) * 0.72,
   );
   vignette.addColorStop(0, 'rgba(5, 7, 13, 0)');
-  vignette.addColorStop(1, 'rgba(5, 7, 13, 0.5)');
+  vignette.addColorStop(1, 'rgba(5, 7, 13, 0.28)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, width, height);
 
