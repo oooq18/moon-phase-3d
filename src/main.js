@@ -66,10 +66,10 @@ function boot(gl) {
   gl.setSize(window.innerWidth, window.innerHeight, false);
   gl.outputColorSpace = THREE.SRGBColorSpace;
   gl.toneMapping = THREE.NoToneMapping;
-  gl.setClearColor(0x070b12, 1);
+  gl.setClearColor(0x060910, 1);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 500);
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 800);
   camera.position.set(0, 0, 8);
 
   const moon = createMoon(gl);
@@ -77,7 +77,10 @@ function boot(gl) {
   moon.anchor.traverse((obj) => {
     if (obj.isMesh) obj.renderOrder = 2;
   });
-  const stars = createStars({ reducedMotion: reduceMotion });
+  const stars = createStars({
+    reducedMotion: reduceMotion,
+    mobile: window.matchMedia('(max-width: 860px), (pointer: coarse)').matches,
+  });
   stars.setPixelRatio(gl.getPixelRatio());
   scene.add(stars.object);
   scene.add(moon.anchor);
@@ -92,23 +95,23 @@ function boot(gl) {
   function frameCamera() {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const mobile = vw <= 720;
+    const mobile = vw <= 860;
     const shortSide = Math.min(vw, vh);
     const landscapeShort = shortSide <= 520 && vw > vh;
     const brandRect = brand.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    const gap = landscapeShort ? 14 : mobile ? 20 : 40;
-    const topPad = landscapeShort ? 8 : mobile ? 14 : 12;
+    const gap = landscapeShort ? 14 : mobile ? 20 : 36;
+    const topPad = landscapeShort ? 10 : mobile ? 16 : 18;
     const topLimit = Math.max(brandRect.bottom, 0) + topPad;
     let panelTop = panelRect.top;
-    const panelLooksUnmeasured = panelRect.height < 24 || panelTop < vh * 0.3;
-    if (panelLooksUnmeasured) panelTop = vh * (mobile ? 0.64 : 0.72);
+    const panelLooksUnmeasured = panelRect.height < 24 || panelTop < vh * 0.45;
+    if (panelLooksUnmeasured) panelTop = vh * (mobile ? 0.72 : 0.84);
     const bottomLimit = panelTop - gap;
     const availH = Math.max(88, bottomLimit - topLimit);
-    const side = landscapeShort ? 18 : mobile ? 22 : 48;
-    const widthCap = (vw - side * 2) * (landscapeShort ? 0.42 : mobile ? 0.88 : 0.64);
-    const heightCap = availH * (landscapeShort ? 0.9 : 0.86);
-    const vhCap = vh * (landscapeShort ? 0.46 : mobile ? 0.54 : 0.58);
+    const side = landscapeShort ? 20 : mobile ? 28 : 80;
+    const widthCap = (vw - side * 2) * (landscapeShort ? 0.36 : mobile ? 0.76 : 0.46);
+    const heightCap = availH * (landscapeShort ? 0.8 : mobile ? 0.78 : 0.72);
+    const vhCap = vh * (landscapeShort ? 0.44 : mobile ? 0.48 : 0.5);
     const targetPx = Math.max(88, Math.min(heightCap, widthCap, vhCap));
     const vFov = THREE.MathUtils.degToRad(camera.fov);
     const tanHalf = Math.tan(vFov / 2);

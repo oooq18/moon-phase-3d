@@ -17,9 +17,8 @@
     <div class="grain" aria-hidden="true"></div>
 
     <header class="brand">
-      <p class="brand-kicker">观测台</p>
+      <p class="brand-mark">观测台</p>
       <h1>观月</h1>
-      <p class="brand-sub">月相 · 东八区</p>
     </header>
 
     <div id="webgl-error" class="webgl-error" hidden>
@@ -27,37 +26,37 @@
       <p>月相数据仍可在下方查看。</p>
     </div>
 
-    <section class="panel" id="panel" aria-label="月相信息">
+    <section class="rail" id="panel" aria-label="月相信息">
       <p id="fallback" class="fallback" hidden>月面贴图未能载入，已改用程序化月面。</p>
-      <div class="panel-top">
-        <div>
-          <p class="eyebrow">月相名称</p>
+      <div class="rail-main">
+        <div class="phase-block">
+          <p class="eyebrow">月相</p>
           <h2 id="phase-name" class="phase-name">—</h2>
+          <time id="when" class="when">—</time>
         </div>
-        <time id="when" class="when">—</time>
-      </div>
-      <dl class="metrics">
-        <div>
-          <dt>月龄</dt>
-          <dd id="metric-age">—</dd>
+        <dl class="metrics">
+          <div>
+            <dt>月龄</dt>
+            <dd id="metric-age">—</dd>
+          </div>
+          <div>
+            <dt>亮面比例</dt>
+            <dd id="metric-illum">—</dd>
+          </div>
+          <div>
+            <dt>地月距离</dt>
+            <dd id="metric-dist">—</dd>
+          </div>
+        </dl>
+        <div class="controls">
+          <button type="button" id="prev">前一天</button>
+          <label class="date-field">
+            <span class="sr-only">选择日期，按北京时间解析</span>
+            <input id="date" type="date" autocomplete="off" />
+          </label>
+          <button type="button" id="next">后一天</button>
+          <button type="button" id="today" hidden>今天</button>
         </div>
-        <div>
-          <dt>亮面比例</dt>
-          <dd id="metric-illum">—</dd>
-        </div>
-        <div>
-          <dt>地月距离</dt>
-          <dd id="metric-dist">—</dd>
-        </div>
-      </dl>
-      <div class="controls">
-        <button type="button" id="prev">前一天</button>
-        <label class="date-field">
-          <span class="sr-only">选择日期，按北京时间解析</span>
-          <input id="date" type="date" autocomplete="off" />
-        </label>
-        <button type="button" id="next">后一天</button>
-        <button type="button" id="today" hidden>今天</button>
       </div>
       <footer class="credit">
         <button type="button" id="credit-toggle" class="credit-toggle" aria-expanded="false" aria-controls="credit-body">

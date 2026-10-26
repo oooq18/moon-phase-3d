@@ -30,17 +30,194 @@ function kelvinToRgb(kelvin) {
   return [clamp(r), clamp(g), clamp(b)];
 }
 
-function starColor(rand, bright) {
-  const pick = rand();
-  let kelvin;
-  if (pick < 0.12) kelvin = 3600 + rand() * 800;
-  else if (pick < 0.4) kelvin = 5000 + rand() * 1200;
-  else kelvin = 7000 + rand() * 4500;
-  const [r, g, b] = kelvinToRgb(kelvin);
-  const sat = 0.32;
-  const white = 1 - sat;
-  const gain = bright ? 1.02 + rand() * 0.22 : 0.84 + rand() * 0.26;
-  return [(r * sat + white) * gain, (g * sat + white) * gain, (b * sat + white) * gain];
+function sampleMagnitude(rand, faint, bright) {
+  const k = 0.46;
+  const a = 10 ** (k * bright);
+  const b = 10 ** (k * faint);
+  return Math.log10(a + rand() * (b - a)) / k;
+}
+
+function spectralKelvin(rand, magnitude) {
+  const roll = rand();
+  if (magnitude < 2.2) {
+    if (roll < 0.07) return 12000 + rand() * 9000;
+    if (roll < 0.3) return 8200 + rand() * 2800;
+    if (roll < 0.68) return 6200 + rand() * 1800;
+    if (roll < 0.9) return 5000 + rand() * 1100;
+    return 3600 + rand() * 1200;
+  }
+  if (roll < 0.035) return 11000 + rand() * 7000;
+  if (roll < 0.1) return 7600 + rand() * 2200;
+  if (roll < 0.24) return 5900 + rand() * 1400;
+  if (roll < 0.48) return 4500 + rand() * 1300;
+  if (roll < 0.74) return 3400 + rand() * 1000;
+  return 2600 + rand() * 900;
+}
+
+function starTint(rand, magnitude) {
+  const [r, g, b] = kelvinToRgb(spectralKelvin(rand, magnitude));
+  const sat = 0.36 + rand() * 0.08;
+  const nr = 0.8;
+  const ng = 0.85;
+  const nb = 0.93;
+  return [r * sat + nr * (1 - sat), g * sat + ng * (1 - sat), b * sat + nb * (1 - sat)];
+}
+
+function fluxGain(magnitude) {
+  const t = Math.min(1, Math.max(0, (magnitude + 1.35) / 8.15));
+  return 1.08 - 0.7 * t ** 0.62;
+}
+
+function pointSize(magnitude) {
+  const t = Math.min(1, Math.max(0, (magnitude + 1.35) / 8));
+  return 1.2 + 6.4 * (1 - t) ** 1.7;
+}
+
+function haloAmount(magnitude) {
+  if (magnitude > 3.1) return 0;
+  if (magnitude > 2) return 0.12;
+  if (magnitude > 0.8) return 0.38;
+  return 0.72 + Math.max(0, 0.8 - magnitude) * 0.2;
+}
+
+function placeOnSphere(rand, radius) {
+  const z = rand() * 2 - 1;
+  const theta = rand() * Math.PI * 2;
+  const ring = Math.sqrt(Math.max(0, 1 - z * z));
+  return [radius * ring * Math.cos(theta), radius * z, radius * ring * Math.sin(theta)];
+}
+
+const vertexShader = /* glsl */ `
+attribute float aSize;
+attribute float aHalo;
+attribute float aPhase;
+attribute float aTwinkle;
+varying vec3 vColor;
+varying float vHalo;
+varying float vFlicker;
+uniform float uTime;
+uniform float uPixelRatio;
+uniform float uFade;
+uniform float uTwinkle;
+
+void main() {
+  float flick = 1.0 + uTwinkle * aTwinkle * sin(uTime * (0.17 + aPhase * 0.11) + aPhase * 6.2831853);
+  vFlicker = flick;
+  vColor = color * uFade;
+  vHalo = aHalo;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  float dist = max(48.0, -mv.z);
+  float atten = clamp(150.0 / dist, 0.62, 1.28);
+  gl_PointSize = clamp(aSize * atten * uPixelRatio * flick, 1.0, 6.4 * uPixelRatio);
+  gl_Position = projectionMatrix * mv;
+}
+`;
+
+const fragmentShader = /* glsl */ `
+varying vec3 vColor;
+varying float vHalo;
+varying float vFlicker;
+
+void main() {
+  vec2 q = gl_PointCoord - vec2(0.5);
+  float r2 = dot(q, q);
+  if (r2 > 0.25) discard;
+  float r = sqrt(r2) * 2.0;
+  float core = exp(-r * r * mix(11.0, 5.2, clamp(vHalo, 0.0, 1.0)));
+  float wing = exp(-r * r * 1.85) * vHalo;
+  float alpha = clamp((core + wing * 0.42) * vFlicker, 0.0, 1.0);
+  if (alpha < 0.012) discard;
+  gl_FragColor = vec4(vColor, alpha);
+}
+`;
+
+const galaxyVertex = /* glsl */ `
+varying vec3 vDir;
+void main() {
+  vec4 world = modelMatrix * vec4(position, 1.0);
+  vDir = normalize(world.xyz);
+  gl_Position = projectionMatrix * viewMatrix * world;
+}
+`;
+
+const galaxyFragment = /* glsl */ `
+varying vec3 vDir;
+uniform float uFade;
+
+float hash(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+
+float noise(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float n000 = hash(i);
+  float n100 = hash(i + vec3(1.0, 0.0, 0.0));
+  float n010 = hash(i + vec3(0.0, 1.0, 0.0));
+  float n110 = hash(i + vec3(1.0, 1.0, 0.0));
+  float n001 = hash(i + vec3(0.0, 0.0, 1.0));
+  float n101 = hash(i + vec3(1.0, 0.0, 1.0));
+  float n011 = hash(i + vec3(0.0, 1.0, 1.0));
+  float n111 = hash(i + vec3(1.0, 1.0, 1.0));
+  return mix(
+    mix(mix(n000, n100, f.x), mix(n010, n110, f.x), f.y),
+    mix(mix(n001, n101, f.x), mix(n011, n111, f.x), f.y),
+    f.z
+  );
+}
+
+void main() {
+  vec3 dir = normalize(vDir);
+  float lat = dir.x * 0.22 + dir.y * 0.91 + dir.z * 0.18;
+  float ribbon = exp(-lat * lat * 26.0);
+  float clumps = noise(dir * 4.2);
+  float fine = noise(dir * 9.5 + 4.0);
+  float lanes = smoothstep(0.22, 0.72, clumps);
+  float dust = smoothstep(0.62, 0.28, fine);
+  float alpha = ribbon * lanes * (0.4 + 0.6 * dust) * 0.1 * uFade;
+  vec3 col = vec3(0.62, 0.68, 0.78);
+  gl_FragColor = vec4(col, alpha);
+}
+`;
+
+function fillPopulation(rand, count, { radiusMin, radiusMax, magMin, magMax }) {
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const halos = new Float32Array(count);
+  const phases = new Float32Array(count);
+  const twinkles = new Float32Array(count);
+
+  for (let i = 0; i < count; i += 1) {
+    const radius = radiusMin + rand() * (radiusMax - radiusMin);
+    const [x, y, z] = placeOnSphere(rand, radius);
+    positions[i * 3] = x;
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = z;
+
+    const magnitude = sampleMagnitude(rand, magMax, magMin);
+    const gain = fluxGain(magnitude) * (0.92 + rand() * 0.16);
+    const [r, g, b] = starTint(rand, magnitude);
+    colors[i * 3] = r * gain;
+    colors[i * 3 + 1] = g * gain;
+    colors[i * 3 + 2] = b * gain;
+    sizes[i] = pointSize(magnitude) * (0.92 + rand() * 0.16);
+    halos[i] = haloAmount(magnitude);
+    phases[i] = rand();
+    twinkles[i] = magnitude < 2.4 && rand() < 0.45 ? 0.025 + rand() * 0.02 : 0;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('aHalo', new THREE.BufferAttribute(halos, 1));
+  geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+  geometry.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkles, 1));
+  return geometry;
 }
 
 function circleTexture() {
@@ -48,115 +225,41 @@ function circleTexture() {
   canvas.width = 64;
   canvas.height = 64;
   const ctx = canvas.getContext('2d');
-  const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  glow.addColorStop(0, 'rgba(255,255,255,1)');
-  glow.addColorStop(0.28, 'rgba(255,255,255,0.95)');
-  glow.addColorStop(0.55, 'rgba(255,255,255,0.35)');
-  glow.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, 64, 64);
+  const image = ctx.createImageData(64, 64);
+  for (let y = 0; y < 64; y += 1) {
+    for (let x = 0; x < 64; x += 1) {
+      const dx = (x + 0.5) / 64 - 0.5;
+      const dy = (y + 0.5) / 64 - 0.5;
+      const r = Math.sqrt(dx * dx + dy * dy) * 2;
+      const alpha = Math.exp(-r * r * 4.2);
+      const i = (y * 64 + x) * 4;
+      image.data[i] = 255;
+      image.data[i + 1] = 255;
+      image.data[i + 2] = 255;
+      image.data[i + 3] = Math.round(alpha * 255);
+    }
+  }
+  ctx.putImageData(image, 0, 0);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
 
-const vertexShader = /* glsl */ `
-attribute float aSize;
-attribute float aPhase;
-attribute float aTwinkle;
-varying vec3 vColor;
-varying float vTwinkle;
-uniform float uTime;
-uniform float uPixelRatio;
-uniform float uFade;
+export function createStars({ reducedMotion = false, mobile = false } = {}) {
+  const rand = mulberry32(0x5f3759df);
+  const populations = [
+    { count: mobile ? 9000 : 17000, radiusMin: 220, radiusMax: 270, magMin: 3.2, magMax: 6.7 },
+    { count: mobile ? 2400 : 4200, radiusMin: 128, radiusMax: 176, magMin: 1.4, magMax: 6.1 },
+    { count: mobile ? 900 : 1200, radiusMin: 108, radiusMax: 148, magMin: -1.4, magMax: 2.5 },
+  ];
 
-void main() {
-  vColor = color;
-  float tw = 1.0 - aTwinkle + aTwinkle * (0.78 + 0.22 * sin(uTime * (0.28 + aPhase * 0.55) + aPhase * 6.28318));
-  vTwinkle = tw * uFade;
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  float dist = max(36.0, -mv.z);
-  float size = aSize * uPixelRatio * (82.0 / dist) * (0.9 + 0.1 * tw);
-  gl_PointSize = clamp(size, 1.75, 6.2 * uPixelRatio);
-  gl_Position = projectionMatrix * mv;
-}
-`;
-
-const fragmentShader = /* glsl */ `
-varying vec3 vColor;
-varying float vTwinkle;
-
-void main() {
-  vec2 p = gl_PointCoord - vec2(0.5);
-  float d = length(p);
-  if (d > 0.5) discard;
-  float core = smoothstep(0.5, 0.02, d);
-  float glow = smoothstep(0.5, 0.18, d);
-  float alpha = (0.42 + 0.58 * glow) * vTwinkle;
-  vec3 col = vColor * (0.72 + 0.85 * core);
-  gl_FragColor = vec4(col, alpha);
-}
-`;
-
-export function createStars({ reducedMotion = false } = {}) {
-  const rand = mulberry32(0x51a7c3);
-  const count = 4600;
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  const phases = new Float32Array(count);
-  const twinkles = new Float32Array(count);
-  const capCos = Math.cos(THREE.MathUtils.degToRad(66));
-
-  for (let i = 0; i < count; i += 1) {
-    const inCap = rand() < 0.88;
-    let x;
-    let y;
-    let z;
-    if (inCap) {
-      const cosA = capCos + rand() * (1 - capCos);
-      const sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
-      const theta = rand() * Math.PI * 2;
-      x = sinA * Math.cos(theta);
-      y = sinA * Math.sin(theta);
-      z = -cosA;
-    } else {
-      const phi = Math.acos(2 * rand() - 1);
-      const theta = rand() * Math.PI * 2;
-      const sinPhi = Math.sin(phi);
-      x = sinPhi * Math.cos(theta);
-      y = Math.cos(phi);
-      z = sinPhi * Math.sin(theta);
-    }
-
-    const radius = 64 + rand() * 52;
-    positions[i * 3] = radius * x;
-    positions[i * 3 + 1] = radius * y;
-    positions[i * 3 + 2] = radius * z;
-
-    const bright = rand() < 0.07;
-    const [r, g, b] = starColor(rand, bright);
-    colors[i * 3] = r;
-    colors[i * 3 + 1] = g;
-    colors[i * 3 + 2] = b;
-    const roll = rand();
-    sizes[i] = bright ? 4.2 + roll * 2.0 : 2.55 + roll * 1.55;
-    phases[i] = rand();
-    twinkles[i] = rand() < 0.55 ? 0.12 + rand() * 0.22 : 0.02;
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
-  geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
-  geometry.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkles, 1));
-
+  const geometries = populations.map((spec) => fillPopulation(rand, spec.count, spec));
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
-      uPixelRatio: { value: 1 },
+      uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 2) },
       uFade: { value: 0 },
+      uTwinkle: { value: reducedMotion || mobile ? 0 : 1 },
     },
     vertexShader,
     fragmentShader,
@@ -167,53 +270,74 @@ export function createStars({ reducedMotion = false } = {}) {
     vertexColors: true,
   });
 
-  const points = new THREE.Points(geometry, material);
-  points.frustumCulled = false;
-  points.renderOrder = -1;
-  const group = new THREE.Group();
-  group.add(points);
+  const points = geometries.map((geometry) => {
+    const cloud = new THREE.Points(geometry, material);
+    cloud.frustumCulled = false;
+    cloud.renderOrder = -1;
+    return cloud;
+  });
+
+  const galaxyMaterial = new THREE.ShaderMaterial({
+    uniforms: { uFade: { value: 0 } },
+    vertexShader: galaxyVertex,
+    fragmentShader: galaxyFragment,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    blending: THREE.NormalBlending,
+    side: THREE.BackSide,
+  });
+  const galaxy = new THREE.Mesh(new THREE.SphereGeometry(340, 48, 32), galaxyMaterial);
+  galaxy.frustumCulled = false;
+  galaxy.renderOrder = -2;
+
+  const sky = new THREE.Group();
+  sky.add(galaxy, ...points);
+  sky.rotation.order = 'YXZ';
+  sky.rotation.x = 0.62;
+  sky.rotation.z = 0.18;
 
   let mode = 'shader';
   let fallback = null;
 
-  function makeFallback() {
-    const sprite = circleTexture();
-    return new THREE.PointsMaterial({
-      size: 0.36,
-      sizeAttenuation: true,
-      vertexColors: true,
-      transparent: true,
-      depthWrite: false,
-      depthTest: true,
-      blending: THREE.AdditiveBlending,
-      map: sprite,
-      alphaMap: sprite,
-      opacity: 0.95,
-    });
-  }
-
   return {
-    object: group,
-    usesShader() {
-      return mode === 'shader';
-    },
+    object: sky,
     useFallback() {
       if (mode === 'fallback') return;
       mode = 'fallback';
-      fallback = makeFallback();
-      points.material = fallback;
+      const sprite = circleTexture();
+      fallback = new THREE.PointsMaterial({
+        size: mobile ? 0.22 : 0.28,
+        sizeAttenuation: true,
+        vertexColors: true,
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        blending: THREE.AdditiveBlending,
+        map: sprite,
+        opacity: 0.9,
+      });
+      points.forEach((cloud) => {
+        cloud.material = fallback;
+      });
+      galaxy.visible = false;
       material.dispose();
+      galaxyMaterial.dispose();
     },
     setPixelRatio(value) {
       if (mode === 'shader') material.uniforms.uPixelRatio.value = value;
     },
     setFade(value) {
-      if (mode === 'shader') material.uniforms.uFade.value = value;
-      else if (fallback) fallback.opacity = 0.35 + 0.65 * value;
+      if (mode === 'shader') {
+        material.uniforms.uFade.value = value;
+        galaxyMaterial.uniforms.uFade.value = value;
+      } else if (fallback) {
+        fallback.opacity = 0.2 + 0.7 * value;
+      }
     },
     update(elapsed) {
       if (mode === 'shader') material.uniforms.uTime.value = elapsed;
-      if (!reducedMotion) group.rotation.y = elapsed * 0.012;
+      if (!reducedMotion) sky.rotation.y = elapsed * 0.00145;
     },
   };
 }

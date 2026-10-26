@@ -1,12 +1,11 @@
 :root {
   color-scheme: dark;
-  --bg: #070b12;
+  --bg: #05070d;
+  --bg-raise: #0a0f1a;
   --text: #e8ecf3;
   --muted: #8a94a6;
-  --line: rgba(198, 210, 224, 0.16);
-  --line-strong: rgba(198, 210, 224, 0.4);
-  --gold: #b7a48a;
-  --fill: rgba(232, 236, 243, 0.035);
+  --line: rgba(186, 198, 214, 0.16);
+  --line-strong: rgba(186, 198, 214, 0.38);
   --serif: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", "PMingLiU", "SimSun", serif;
   --sans: "Source Han Sans SC", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans", "Segoe UI", sans-serif;
   --mono: "SFMono-Regular", "Cascadia Mono", "Source Code Pro", ui-monospace, "PingFang SC", "Microsoft YaHei", monospace;
@@ -20,7 +19,8 @@ html,
 body {
   margin: 0;
   height: 100%;
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse at 50% 38%, var(--bg-raise) 0%, var(--bg) 62%);
   color: var(--text);
   font-family: var(--sans);
   overflow: hidden;
@@ -43,7 +43,7 @@ body {
   pointer-events: none;
   z-index: 1;
   background:
-    radial-gradient(ellipse at 50% 36%, transparent 48%, rgba(5, 7, 13, 0.1) 72%, rgba(5, 7, 13, 0.4) 100%);
+    radial-gradient(ellipse at 50% 42%, transparent 62%, rgba(5, 7, 13, 0.16) 84%, rgba(5, 7, 13, 0.42) 100%);
 }
 
 .grain {
@@ -51,57 +51,50 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  opacity: 0.045;
+  opacity: 0.018;
   mix-blend-mode: overlay;
-  background-size: 160px 160px;
+  background-size: 180px 180px;
 }
 
 .brand {
   position: fixed;
   z-index: 3;
-  top: max(1.2rem, env(safe-area-inset-top));
-  left: max(1.3rem, env(safe-area-inset-left));
-  animation: fade-down 1000ms ease both;
+  top: max(1.15rem, env(safe-area-inset-top));
+  left: max(1.4rem, env(safe-area-inset-left));
+  animation: fade-down 1200ms ease both;
 }
 
-.brand-kicker {
+.brand-mark {
   display: flex;
   align-items: center;
   gap: 0.55rem;
   margin: 0;
   color: var(--muted);
-  font-size: 0.68rem;
-  letter-spacing: 0.28em;
+  font-size: 0.62rem;
+  letter-spacing: 0.34em;
 }
 
-.brand-kicker::before {
+.brand-mark::before {
   content: "";
-  width: 1.15rem;
+  width: 1.4rem;
   height: 1px;
-  background: var(--gold);
-  opacity: 0.85;
+  background: rgba(186, 198, 214, 0.55);
 }
 
 .brand h1 {
-  margin: 0.28rem 0 0;
+  margin: 0.35rem 0 0;
   font-family: var(--serif);
-  font-weight: 500;
-  font-size: 1.7rem;
-  letter-spacing: 0.32em;
+  font-weight: 400;
+  font-size: 1.02rem;
+  letter-spacing: 0.5em;
   line-height: 1;
-}
-
-.brand-sub {
-  margin: 0.45rem 0 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-  letter-spacing: 0.18em;
+  color: rgba(232, 236, 243, 0.78);
 }
 
 .webgl-error {
   position: fixed;
   z-index: 3;
-  inset: 18% 12% auto;
+  inset: 22% 14% auto;
   text-align: center;
   color: var(--muted);
   letter-spacing: 0.08em;
@@ -111,99 +104,99 @@ body {
   margin: 0.3rem 0;
 }
 
-.panel {
+.rail {
   position: fixed;
   z-index: 4;
   left: 0;
   right: 0;
-  bottom: max(1.15rem, env(safe-area-inset-bottom));
-  width: min(760px, calc(100% - 2.5rem));
-  margin-inline: auto;
-  padding: 1.05rem 1.35rem 0.8rem;
-  background: rgba(12, 16, 24, 0.62);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow:
-    inset 0 1px 0 rgba(232, 236, 243, 0.05),
-    0 18px 40px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(16px) saturate(1.15);
-  -webkit-backdrop-filter: blur(16px) saturate(1.15);
-  animation: rise 860ms cubic-bezier(0.22, 0.8, 0.32, 1) 80ms both;
+  bottom: 0;
+  padding: 0.85rem 1.8rem calc(0.65rem + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(8, 12, 20, 0.08), rgba(5, 7, 13, 0.78) 42%);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: rise 1100ms ease 80ms both;
 }
 
 .fallback {
-  margin: 0 0 0.75rem;
-  color: var(--gold);
-  font-size: 0.75rem;
+  margin: 0 0 0.55rem;
+  color: var(--muted);
+  font-size: 0.7rem;
   letter-spacing: 0.04em;
 }
 
-.panel-top {
+.rail-main {
   display: flex;
-  justify-content: space-between;
   align-items: flex-end;
-  gap: 1.25rem;
+  justify-content: space-between;
+  gap: 2.4rem;
+}
+
+.phase-block {
+  flex: 0 0 auto;
+  min-width: 8.5rem;
 }
 
 .eyebrow {
   margin: 0;
   color: var(--muted);
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
+  font-size: 0.62rem;
+  font-weight: 400;
+  letter-spacing: 0.28em;
 }
 
 .phase-name {
-  margin: 0.2rem 0 0;
+  margin: 0.28rem 0 0;
   font-family: var(--serif);
-  font-weight: 500;
-  font-size: clamp(2rem, 4vw, 3.05rem);
-  letter-spacing: 0.14em;
-  line-height: 1.05;
+  font-weight: 400;
+  font-size: 1.85rem;
+  letter-spacing: 0.2em;
+  line-height: 1;
 }
 
 .when {
-  margin: 0;
-  padding-bottom: 0.4rem;
+  display: block;
+  margin: 0.45rem 0 0;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  font-size: 0.86rem;
+  font-size: 0.72rem;
   letter-spacing: 0.04em;
   white-space: nowrap;
-  transition: opacity 480ms ease;
+  transition: opacity 520ms ease;
 }
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0.9rem 0 0;
-  padding: 0.8rem 0 0;
-  border-top: 1px solid var(--line);
+  grid-template-columns: repeat(3, minmax(7.5rem, 1fr));
+  flex: 1 1 28rem;
+  max-width: 36rem;
+  margin: 0 0 0.1rem;
 }
 
-.metrics > div + div {
-  padding-left: 1rem;
+.metrics > div {
+  padding: 0 0 0 1.35rem;
   border-left: 1px solid var(--line);
 }
 
 .metrics dt {
   margin: 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 400;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.22em;
 }
 
 .metrics dd,
 .when.is-dim,
 .phase-name.is-dim {
-  transition: opacity 480ms ease;
+  transition: opacity 520ms ease;
 }
 
 .metrics dd {
-  margin: 0.32rem 0 0;
+  margin: 0.38rem 0 0;
   font-family: var(--mono);
   font-size: 1.02rem;
-  font-weight: 450;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
 }
@@ -216,22 +209,24 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.9rem;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin: 0 0 0.05rem;
 }
 
 button,
 .date-field input {
   font-family: inherit;
   color: var(--muted);
-  background: var(--fill);
+  background: transparent;
   border: 1px solid var(--line);
-  border-radius: 4px;
-  min-height: 2.35rem;
-  padding: 0.4rem 0.8rem;
-  letter-spacing: 0.08em;
-  font-size: 0.78rem;
-  transition: background 480ms ease, border-color 480ms ease, color 480ms ease;
+  border-radius: 0;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.75rem;
+  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  touch-action: manipulation;
+  transition: border-color 480ms ease, color 480ms ease, background 480ms ease;
 }
 
 button {
@@ -240,20 +235,19 @@ button {
 
 button:hover,
 .date-field input:hover {
-  background: rgba(232, 236, 243, 0.07);
   border-color: var(--line-strong);
   color: var(--text);
+  background: rgba(232, 236, 243, 0.03);
 }
 
 button:focus-visible,
 .date-field input:focus-visible {
-  outline: 1px solid rgba(198, 210, 224, 0.75);
+  outline: 1px solid rgba(186, 198, 214, 0.7);
   outline-offset: 3px;
 }
 
 .date-field {
-  flex: 1 1 11rem;
-  min-width: 0;
+  width: 9.6rem;
 }
 
 .date-field input {
@@ -261,22 +255,24 @@ button:focus-visible,
   color: var(--text);
   color-scheme: dark;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
 }
 
 .date-field input::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  opacity: 0.65;
-  filter: invert(0.85) sepia(0.15) saturate(0.3);
+  opacity: 0.55;
+  filter: invert(0.85);
 }
 
 .credit {
   margin: 0.7rem 0 0;
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 1.55;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(186, 198, 214, 0.1);
+  color: rgba(138, 148, 166, 0.9);
+  font-size: 0.62rem;
+  line-height: 1.5;
   letter-spacing: 0.02em;
+  max-width: 68rem;
 }
 
 .credit-toggle {
@@ -299,119 +295,123 @@ button:focus-visible,
   border: 0;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 860px) {
   .brand {
-    top: max(0.7rem, env(safe-area-inset-top));
-    left: max(0.85rem, env(safe-area-inset-left));
-  }
-
-  .brand-kicker {
-    font-size: 0.62rem;
-    letter-spacing: 0.22em;
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: max(0.9rem, env(safe-area-inset-left));
   }
 
   .brand h1 {
-    font-size: 1.28rem;
-    letter-spacing: 0.22em;
+    font-size: 0.92rem;
+    letter-spacing: 0.42em;
   }
 
-  .brand-sub {
-    margin-top: 0.28rem;
-    font-size: 0.68rem;
-  }
-
-  .panel {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    border-radius: 16px 16px 0 0;
-    border-bottom: 0;
-    padding: 0.7rem 0.85rem calc(0.5rem + env(safe-area-inset-bottom));
-    max-height: 40dvh;
+  .rail {
+    padding: 0.72rem 0.9rem calc(0.5rem + env(safe-area-inset-bottom));
+    background: rgba(6, 9, 16, 0.78);
+    max-height: 38dvh;
     overflow: hidden;
   }
 
-  .panel:has(.credit.is-open) {
+  .rail:has(.credit.is-open) {
     overflow: auto;
   }
 
-  .panel-top {
-    align-items: flex-end;
-    gap: 0.35rem 0.6rem;
+  .rail-main {
+    flex-direction: column;
+    align-items: stretch;
+    flex: 0 0 auto;
+    gap: 0.65rem;
   }
 
-  .panel-top > div:first-child {
+  .phase-block,
+  .metrics,
+  .controls {
     flex: 0 0 auto;
   }
 
+  .phase-block {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 0.75rem;
+    align-items: baseline;
+    min-width: 0;
+  }
+
   .eyebrow {
-    font-size: 0.62rem;
-    letter-spacing: 0.12em;
+    grid-column: 1 / -1;
   }
 
   .phase-name {
-    font-size: 1.48rem;
-    letter-spacing: 0.08em;
+    font-size: 1.42rem;
+    letter-spacing: 0.12em;
   }
 
   .when {
-    flex: 1 1 auto;
-    min-width: 0;
-    padding-bottom: 0.15rem;
-    font-size: 0.7rem;
+    margin: 0;
+    justify-self: end;
     text-align: right;
     white-space: normal;
+    font-size: 0.68rem;
   }
 
   .metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin-top: 0.5rem;
-    padding-top: 0.45rem;
+    max-width: none;
+    margin: 0;
+    width: 100%;
   }
 
-  .metrics > div + div {
-    padding-left: 0.45rem;
+  .metrics > div {
+    padding-left: 0.55rem;
+  }
+
+  .metrics > div:first-child {
+    padding-left: 0;
+    border-left: 0;
   }
 
   .metrics dt {
-    font-size: 0.62rem;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.12em;
+    font-size: 0.6rem;
   }
 
   .metrics dd {
-    margin-top: 0.18rem;
-    font-size: 0.78rem;
+    margin-top: 0.22rem;
+    font-size: 0.84rem;
   }
 
   .controls {
-    margin-top: 0.5rem;
+    justify-content: stretch;
     gap: 0.4rem;
   }
 
+  .date-field {
+    flex: 1 1 8rem;
+    width: auto;
+    min-width: 0;
+  }
+
   button,
-  .date-field input {
+  .date-field input,
+  .credit-toggle {
     min-height: 44px;
-    padding: 0.35rem 0.7rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
   }
 
   .credit {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.35rem 0.6rem;
+    gap: 0.35rem;
     margin-top: 0.45rem;
     padding-top: 0.4rem;
+    max-width: none;
   }
 
   .credit-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 44px;
     min-width: 44px;
   }
 
@@ -426,122 +426,97 @@ button:focus-visible,
 }
 
 @media (max-height: 520px) and (orientation: landscape) {
-  .brand-kicker,
-  .brand-sub,
-  .eyebrow {
+  .brand-mark {
     display: none;
   }
 
   .brand h1 {
-    font-size: 1.12rem;
-    letter-spacing: 0.18em;
+    font-size: 0.82rem;
+    letter-spacing: 0.32em;
   }
 
-  .panel {
+  .rail {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
-    column-gap: 0.45rem;
-    width: min(920px, calc(100% - 1.2rem));
+    column-gap: 0.6rem;
     max-height: 40dvh;
     overflow: hidden;
     padding: 0.4rem 0.75rem calc(0.28rem + env(safe-area-inset-bottom));
   }
 
-  .panel > .fallback,
-  .panel-top,
-  .metrics {
+  .fallback {
     grid-column: 1 / -1;
   }
 
-  .controls {
-    grid-column: 1;
-    margin-top: 0.28rem;
-  }
-
-  .panel:has(.credit.is-open) {
-    overflow: auto;
+  .rail-main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 0.7rem;
   }
 
   .phase-name {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
   }
 
   .when {
-    font-size: 0.66rem;
-  }
-
-  .metrics {
-    margin-top: 0.28rem;
-    padding-top: 0.28rem;
+    font-size: 0.62rem;
   }
 
   .metrics dd {
-    font-size: 0.72rem;
-  }
-
-  button,
-  .date-field input,
-  .credit-toggle {
-    min-height: 44px;
+    font-size: 0.75rem;
+    margin-top: 0.12rem;
   }
 
   .credit {
-    display: flex;
     grid-column: 2;
-    align-items: center;
     margin: 0;
     padding: 0;
     border: 0;
+    align-self: end;
   }
 
   .credit-toggle {
     display: inline-flex;
+    min-height: 44px;
+    min-width: 44px;
     align-items: center;
     justify-content: center;
-    min-width: 44px;
   }
 
   .credit-body {
     display: none;
-    flex: 1 1 100%;
   }
 
   .credit.is-open {
     grid-column: 1 / -1;
-    flex-wrap: wrap;
-    margin-top: 0.28rem;
-    padding-top: 0.28rem;
+    margin-top: 0.3rem;
+    padding-top: 0.3rem;
     border-top: 1px solid var(--line);
   }
 
   .credit.is-open .credit-body {
     display: block;
   }
+
+  .rail:has(.credit.is-open) {
+    overflow: auto;
+  }
 }
 
 @keyframes rise {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes fade-down {
-  from {
-    opacity: 0;
-    translate: 0 -8px;
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .panel,
+  .rail,
   .brand,
   .metrics dd,
   .when,
