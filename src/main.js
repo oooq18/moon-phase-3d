@@ -50,7 +50,6 @@ function applyDate(date, { live: nextLive, immediate, litMs, settle = 'even', no
 const LARGE_DAY = 1.5;
 const LARGE_MS = 1760;
 const GENTLE_MS = 1100;
-const MOON_TURNS = 3;
 
 const ui = mountUI(document, new Date(), (date, { live: nextLive }) => {
   const previous = currentDate.getTime();
@@ -60,17 +59,15 @@ const ui = mountUI(document, new Date(), (date, { live: nextLive }) => {
   const large = absDays >= LARGE_DAY;
   const now = performance.now();
   const motionMs = large ? LARGE_MS : GENTLE_MS;
+  // The ball stays on the nearside. Only the sunlight eases; the sky turns.
   applyDate(date, {
     live: nextLive,
     immediate: false,
     litMs: move ? motionMs : 680,
-    settle: move && large ? 'late' : 'even',
+    settle: 'even',
     now,
     sky: 'handled',
   });
-  if (move && large && moonApi) {
-    moonApi.spinBy(Math.sign(delta) * MOON_TURNS, { duration: motionMs, now });
-  }
   if (starsApi && Math.abs(delta) > 60000) {
     starsApi.advance(delta, now, {
       duration: move ? motionMs : 0,

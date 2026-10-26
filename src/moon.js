@@ -204,7 +204,7 @@ function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
 }
 
-/** World light that spins with the mesh. `extra` is yaw past the nearside rest pose. */
+/** Sun direction in world space. `extra` is mesh yaw past the nearside; the ball stays there, so this is the astronomy sun. */
 export function yawLockedLight(dir, extra, out) {
   const c = Math.cos(extra);
   const s = Math.sin(extra);
@@ -307,7 +307,6 @@ export function createMoon(renderer) {
   let lerping = false;
   let lerpMs = 680;
   let lerpSettle = 'even';
-  let spin = null;
 
   function phaseEase(t) {
     if (lerpSettle !== 'late') return easeInOutCubic(t);
@@ -317,28 +316,6 @@ export function createMoon(renderer) {
 
   function paintLight() {
     yawLockedLight(currentDir, mesh.rotation.y - BASE_YAW, uniforms.uLightDir.value);
-  }
-
-  /**
-   * Spin the mesh about celestial north through whole turns, then stop
-   * on the nearside. The sun direction uses the same yaw, so the terminator
-   * stays on the ball. A one-day step does not call this: that path only
-   * eases the light, with no out-and-back nod.
-   */
-  function spinBy(turns, { duration = 1760, now = performance.now() } = {}) {
-    const tau = Math.PI * 2;
-    if (duration <= 0 || !Number.isFinite(turns) || turns === 0) {
-      mesh.rotation.y = BASE_YAW;
-      spin = null;
-      paintLight();
-      return;
-    }
-    const from = mesh.rotation.y;
-    let dest = from + turns * tau;
-    const cycles = Math.round((dest - BASE_YAW) / tau);
-    dest = BASE_YAW + cycles * tau;
-    if ((dest - from) * turns <= 0) dest += Math.sign(turns) * tau;
-    spin = { mode: 'turns', start: now, duration, from, to: dest };
   }
 
   function setSunDirection(dir, { immediate = false, duration = 680, now = performance.now(), settle = 'even' } = {}) {
@@ -362,15 +339,7 @@ export function createMoon(renderer) {
   }
 
   function update(now, reveal) {
-    if (spin) {
-      const t = Math.min(1, (now - spin.start) / spin.duration);
-      const eased = easeInOutCubic(t);
-      mesh.rotation.y = spin.from + (spin.to - spin.from) * eased;
-      if (t >= 1) {
-        mesh.rotation.y = BASE_YAW;
-        spin = null;
-      }
-    }
+    mesh.rotation.y = BASE_YAW;
 
     if (lerping) {
       const t = Math.min(1, (now - lerpStart) / lerpMs);
@@ -415,7 +384,6 @@ export function createMoon(renderer) {
     radius: MOON_RADIUS,
     assets,
     setSunDirection,
-    spinBy,
     update,
   };
 }
