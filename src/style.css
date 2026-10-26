@@ -165,18 +165,6 @@ body {
   line-height: 0.95;
 }
 
-.when {
-  display: block;
-  margin: 12px 0 0;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  white-space: nowrap;
-}
-
 .metrics {
   width: min(40rem, 100%);
   display: grid;
@@ -245,7 +233,6 @@ body {
 }
 
 .phase-name,
-.when,
 .metrics dd {
   transition: opacity 480ms ease;
 }
@@ -378,11 +365,7 @@ button[hidden] {
   }
 
   .caption {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    column-gap: 12px;
+    display: block;
     text-shadow: none;
   }
 
@@ -394,14 +377,6 @@ button[hidden] {
     font-size: 1.45rem;
     letter-spacing: 0.1em;
     line-height: 1;
-  }
-
-  .when {
-    flex: 1 1 auto;
-    margin: 0;
-    text-align: right;
-    font-size: 0.66rem;
-    letter-spacing: 0.01em;
   }
 
   .metrics {
@@ -534,14 +509,6 @@ button[hidden] {
     letter-spacing: 0.1em;
   }
 
-  .when {
-    display: block;
-    margin: 4px 0 0;
-    text-align: left;
-    font-size: 0.6rem;
-    white-space: nowrap;
-  }
-
   .metrics {
     grid-area: metrics;
     width: 100%;
@@ -602,7 +569,6 @@ button[hidden] {
   .hud,
   .brand,
   .phase-name,
-  .when,
   .metrics dd,
   .cluster button,
   .date-field input {

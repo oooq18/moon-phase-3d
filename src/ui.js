@@ -4,14 +4,12 @@ import {
   formatDistanceKm,
   formatIllumination,
   formatISODateShanghai,
-  formatShanghaiWhen,
   isSameShanghaiDate,
   withShanghaiYMD,
 } from './astronomy.js';
 
 export function mountUI(root, initialDate, onDate) {
   const phaseName = root.querySelector('#phase-name');
-  const when = root.querySelector('#when');
   const age = root.querySelector('#metric-age');
   const illum = root.querySelector('#metric-illum');
   const distance = root.querySelector('#metric-dist');
@@ -81,8 +79,6 @@ export function mountUI(root, initialDate, onDate) {
   function render(info, date) {
     current = new Date(date.getTime());
     fadeText(phaseName, info.name);
-    fadeText(when, formatShanghaiWhen(date));
-    when.dateTime = date.toISOString();
     paintMetric(age, info.ageDays.toFixed(1), '天');
     paintMetric(illum, formatIllumination(info.illuminated).replace('%', ''), '%');
     paintMetric(distance, formatDistanceKm(info.distanceKm).replace(/\s*km$/, ''), 'km');

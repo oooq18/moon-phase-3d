@@ -56,13 +56,6 @@ export function withShanghaiYMD(date, iso) {
   return new Date(Date.UTC(year, month - 1, day, p.hour - 8, p.minute, p.second));
 }
 
-export function formatShanghaiWhen(date) {
-  const p = shanghaiParts(date);
-  const hh = String(p.hour).padStart(2, '0');
-  const mm = String(p.minute).padStart(2, '0');
-  return `${p.year}年${p.month}月${p.day}日  ${hh}:${mm} · 上海`;
-}
-
 export function formatDistanceKm(km) {
   const rounded = Math.round(km);
   const grouped = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(rounded);
