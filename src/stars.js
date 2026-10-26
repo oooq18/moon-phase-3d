@@ -58,24 +58,24 @@ function spectralKelvin(rand, magnitude) {
 
 function starTint(rand, magnitude) {
   const [r, g, b] = kelvinToRgb(spectralKelvin(rand, magnitude));
-  // Bright stars keep a real spectral tint. Faint ones lean warm, the way
-  // most field stars are K and M dwarfs, instead of washing out to white dots.
-  const sat = magnitude < 0.8 ? 0.88 : magnitude < 2.4 ? 0.7 : magnitude < 4.2 ? 0.5 : 0.34;
-  const s = Math.min(0.94, Math.max(0.16, sat + (rand() - 0.5) * 0.05));
-  const nr = magnitude < 1.2 ? 0.86 : 0.93;
-  const ng = magnitude < 1.2 ? 0.88 : 0.8;
-  const nb = magnitude < 1.2 ? 0.96 : 0.68;
+  // Bright stars keep a cool or warm tint. Faint ones fall back toward white,
+  // the way scotopic vision washes color out of the field.
+  const sat = magnitude < 1 ? 0.8 : magnitude < 2.6 ? 0.52 : magnitude < 4.4 ? 0.3 : 0.14;
+  const s = Math.min(0.92, Math.max(0.08, sat + (rand() - 0.5) * 0.06));
+  const nr = 0.84;
+  const ng = 0.86;
+  const nb = 0.92;
   return [r * s + nr * (1 - s), g * s + ng * (1 - s), b * s + nb * (1 - s)];
 }
 
 function fluxGain(magnitude) {
   const t = Math.min(1, Math.max(0, (magnitude + 1.35) / 8.15));
-  return 0.42 + 0.78 * (1 - t) ** 1.15;
+  return 1.08 - 0.7 * t ** 0.62;
 }
 
 function pointSize(magnitude) {
   const t = Math.min(1, Math.max(0, (magnitude + 1.4) / 8.4));
-  return 0.42 + 6.4 * (1 - t) ** 1.55;
+  return 0.9 + 7.6 * (1 - t) ** 2.45;
 }
 
 function haloAmount(magnitude) {
@@ -142,11 +142,11 @@ void main() {
   vHalo = aHalo;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   float dist = max(24.0, -mv.z);
-  float falloff = clamp(pow(210.0 / dist, 0.5), 0.42, 1.0);
+  float falloff = clamp(pow(210.0 / dist, 0.58), 0.36, 1.05);
   vColor = color * uFade * falloff;
-  float atten = clamp(pow(220.0 / dist, 0.72), 0.55, 1.8);
-  float layer = mix(1.15, 0.82, clamp(aDepth, 0.0, 1.0));
-  gl_PointSize = clamp(aSize * atten * layer * uPixelRatio * flick, 1.0 * uPixelRatio, 4.6 * uPixelRatio);
+  float atten = clamp(pow(200.0 / dist, 0.92), 0.36, 2.7);
+  float layer = mix(1.24, 0.74, clamp(aDepth, 0.0, 1.0));
+  gl_PointSize = clamp(aSize * atten * layer * uPixelRatio * flick, 0.45, 12.0 * uPixelRatio);
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -162,7 +162,7 @@ void main() {
   if (r2 > 0.25) discard;
   float r = sqrt(r2) * 2.0;
   float halo = clamp(vHalo, 0.0, 1.0);
-  float core = exp(-r * r * mix(22.0, 13.0, halo));
+  float core = exp(-r * r * mix(26.0, 14.0, halo));
   float wing = exp(-r * r * 3.3) * smoothstep(0.06, 0.6, halo);
   float veil = exp(-r * r * 1.15) * smoothstep(0.4, 0.9, halo);
   float alpha = clamp((core + wing * 0.4 + veil * 0.16) * vFlicker, 0.0, 1.0);
@@ -211,36 +211,21 @@ float noise(vec3 p) {
 
 void main() {
   vec3 dir = normalize(vDir);
-  // Galactic latitude. Noise is on the direction, so the band does not stretch at the poles.
-  float lat = dot(dir, normalize(vec3(0.22, 0.91, 0.18)));
-
-  vec3 sky = vec3(0.0);
-
-  // Soft nebula: a few cool-blue masses, with a faint magenta only inside them.
-  float broad = noise(dir * 1.65 + 1.3);
-  float puff = noise(dir * 3.35 + 4.8);
-  float wisp = noise(dir * 6.6 + 2.2);
-  // Only the denser peaks, so most of the dome stays black.
-  float mass = smoothstep(0.58, 0.88, broad * 0.55 + puff * 0.45);
-  float veil = smoothstep(0.64, 0.92, puff);
-  vec3 blue = vec3(0.08, 0.18, 0.36);
-  vec3 magenta = vec3(0.16, 0.06, 0.2);
-  vec3 neb = mix(blue, magenta, smoothstep(0.45, 0.85, wisp) * 0.4);
-  sky += neb * mass * (0.62 + veil * 0.22);
-
-  // A band, not a sky-wide wash: mottled, with dark dust lanes and a brighter core.
-  float shoulder = exp(-lat * lat * 18.0);
-  float core = exp(-lat * lat * 42.0);
-  float mott = noise(dir * 2.8 + 0.4);
-  float grain = noise(dir * 6.2 + 3.1);
-  float lanes = smoothstep(0.34, 0.8, mott);
-  float dust = smoothstep(0.28, 0.72, grain);
-  float mw = shoulder * (0.2 + 0.8 * lanes) * (1.0 - 0.62 * dust) + core * (0.45 + 0.4 * lanes);
-  vec3 mwCol = mix(vec3(0.2, 0.24, 0.38), vec3(0.48, 0.46, 0.42), core);
-  sky += mwCol * mw * 0.34;
-
-  sky *= uFade;
-  gl_FragColor = vec4(sky, 1.0);
+  float lat = dir.x * 0.22 + dir.y * 0.91 + dir.z * 0.18;
+  float ribbon = exp(-lat * lat * 46.0);
+  float shoulder = exp(-lat * lat * 12.0);
+  float clumps = noise(dir * 3.2);
+  float fine = noise(dir * 8.2 + 3.0);
+  float grain = noise(dir * 15.0 + 1.7);
+  float clouds = smoothstep(0.18, 0.8, clumps);
+  float dust = smoothstep(0.7, 0.24, fine);
+  float knots = smoothstep(0.58, 0.9, grain);
+  float band = ribbon * 0.85 + shoulder * 0.32;
+  float alpha = band * clouds * (0.2 + 0.8 * dust) * (0.045 + 0.04 * knots) * uFade;
+  vec3 cool = vec3(0.42, 0.52, 0.76);
+  vec3 warm = vec3(0.78, 0.66, 0.5);
+  vec3 col = mix(cool, warm, clamp(ribbon * (0.3 + 0.7 * dust), 0.0, 1.0));
+  gl_FragColor = vec4(col, alpha);
 }
 `;
 
@@ -359,9 +344,9 @@ function circleTexture() {
 export function createStars({ reducedMotion = false, mobile = false } = {}) {
   const rand = mulberry32(0x5f3759df);
   const populations = [
-    { count: mobile ? 28000 : 72000, radiusMin: 500, radiusMax: 820, magMin: 4.4, magMax: 7.1, depth: 1, sizeScale: 0.9, haloScale: 0, dim: 0.78, parallax: 0.84, plane: 0.12, spread: 0.46 },
-    { count: mobile ? 5600 : 14000, radiusMin: 230, radiusMax: 390, magMin: 1.4, magMax: 4.8, depth: 0.46, sizeScale: 1, haloScale: 0.2, dim: 0.82, parallax: 1, plane: 0.38, spread: 0.2 },
-    { count: mobile ? 160 : 340, radiusMin: 118, radiusMax: 190, magMin: -1.46, magMax: 1.5, depth: 0, sizeScale: 1.05, haloScale: 1, dim: 1, parallax: 1.16, plane: 0.08, spread: 0.36 },
+    { count: mobile ? 12000 : 20000, radiusMin: 500, radiusMax: 820, magMin: 5.3, magMax: 7.3, depth: 1, sizeScale: 0.72, haloScale: 0, dim: 0.52, parallax: 0.84, plane: 0.58, spread: 0.13 },
+    { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 2.9, magMax: 5.6, depth: 0.48, sizeScale: 0.92, haloScale: 0.22, dim: 0.76, parallax: 1, plane: 0.2, spread: 0.22 },
+    { count: mobile ? 72 : 128, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.15, haloScale: 1, dim: 1, parallax: 1.16, plane: 0.06, spread: 0.3 },
   ];
 
   const material = new THREE.ShaderMaterial({
@@ -393,13 +378,13 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   });
 
   const galaxyMaterial = new THREE.ShaderMaterial({
-    uniforms: {
-      uFade: { value: 0 },
-    },
+    uniforms: { uFade: { value: 0 } },
     vertexShader: galaxyVertex,
     fragmentShader: galaxyFragment,
+    transparent: true,
     depthWrite: false,
     depthTest: false,
+    blending: THREE.NormalBlending,
     side: THREE.BackSide,
   });
   const galaxy = new THREE.Mesh(new THREE.SphereGeometry(900, 48, 32), galaxyMaterial);
@@ -473,7 +458,6 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
     setPixelRatio(value) {
       if (mode === 'shader') material.uniforms.uPixelRatio.value = value;
     },
-    setPixelAngle() {},
     setFade(value) {
       if (mode === 'shader') {
         material.uniforms.uFade.value = value;

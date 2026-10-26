@@ -262,9 +262,6 @@ function boot(gl) {
     gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     stars.setPixelRatio(gl.getPixelRatio());
     gl.setSize(vw, vh, false);
-    // Star dust is sized to the frame, not the framebuffer, so a 4K share
-    // keeps the same sky when it is scaled down to the screen.
-    stars.setPixelAngle((2 * tanHalf) / 1500);
   };
 
   function frameShare(index) {
@@ -570,8 +567,6 @@ async function shareView(gl, scene, camera, stars, frameShare, frameDualShare) {
     stars.setPixelRatio(frameH / Math.max(1, window.innerHeight));
     gl.setPixelRatio(1);
     gl.setSize(frameW, frameH, false);
-    const shareTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-    stars.setPixelAngle((2 * shareTan) / 1500);
     resized = true;
 
     if (dual) {
