@@ -43,7 +43,7 @@ export function mountUI(root, initialDate, onDate) {
       el.textContent = text;
       el.classList.remove('is-dim');
       timers.delete(el);
-    }, 150);
+    }, 400);
     timers.set(el, timer);
   }
 
@@ -76,7 +76,7 @@ export function mountUI(root, initialDate, onDate) {
     const timer = window.setTimeout(() => {
       apply();
       timers.delete(el);
-    }, 150);
+    }, 400);
     timers.set(el, timer);
   }
 

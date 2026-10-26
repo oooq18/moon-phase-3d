@@ -100,26 +100,26 @@ function boot(gl) {
     const landscapeShort = shortSide <= 520 && vw > vh;
     const brandRect = brand.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    const gap = landscapeShort ? 36 : mobile ? 64 : 72;
-    const topPad = landscapeShort ? 10 : mobile ? 16 : 18;
+    const gap = landscapeShort ? 18 : mobile ? 28 : 44;
+    const topPad = landscapeShort ? 8 : mobile ? 12 : 20;
     const topLimit = Math.max(brandRect.bottom, 0) + topPad;
     let panelTop = panelRect.top;
-    const panelLooksUnmeasured = panelRect.height < 24 || panelTop < vh * 0.45;
-    if (panelLooksUnmeasured) panelTop = vh * (mobile ? 0.68 : 0.82);
+    const panelLooksUnmeasured = panelRect.height < 24 || panelTop < vh * 0.4;
+    if (panelLooksUnmeasured) {
+      panelTop = vh * (landscapeShort ? 0.74 : mobile ? 0.62 : 0.66);
+    }
     const bottomLimit = panelTop - gap;
-    const availH = Math.max(88, bottomLimit - topLimit);
-    const side = landscapeShort ? 20 : mobile ? 28 : 80;
-    const widthCap = (vw - side * 2) * (landscapeShort ? 0.36 : mobile ? 0.78 : 0.48);
-    const heightCap = availH * (landscapeShort ? 0.9 : mobile ? 0.94 : 0.9);
-    const vhCap = vh * (landscapeShort ? 0.46 : mobile ? 0.52 : 0.52);
-    const targetPx = Math.max(88, Math.min(heightCap, widthCap, vhCap));
+    const availH = Math.max(72, bottomLimit - topLimit);
+    const side = landscapeShort ? 16 : mobile ? 18 : 64;
+    const widthCap = (vw - side * 2) * (landscapeShort ? 0.42 : mobile ? 0.86 : 0.56);
+    const heightCap = availH * (landscapeShort ? 0.92 : 0.86);
+    const vhCap = vh * (landscapeShort ? 0.5 : mobile ? 0.58 : 0.52);
+    const targetPx = Math.max(72, Math.min(heightCap, widthCap, vhCap));
     const vFov = THREE.MathUtils.degToRad(camera.fov);
     const tanHalf = Math.tan(vFov / 2);
     const fitDist = (moon.radius * vh) / (tanHalf * targetPx);
-    const freeCenter = bottomLimit - targetPx / 2;
-    // Camera stays on the view axis. Shifting the moon in world Y moves it
-    // toward the free band above the panel; moving the camera with it would
-    // cancel that and leave the disk viewport-centered.
+    // Center the disk in the open sky between the brand and the floating HUD.
+    const freeCenter = topLimit + availH / 2;
     const y = fitDist * tanHalf * ((vh - 2 * freeCenter) / vh);
 
     moon.anchor.position.set(0, y, 0);
