@@ -5,6 +5,7 @@ import {
   formatIllumination,
   formatISODateShanghai,
   isSameShanghaiDate,
+  parseCivilYMD,
   withShanghaiYMD,
 } from './astronomy.js';
 import { poemForPhase } from './poems.js';
@@ -24,8 +25,10 @@ export function mountUI(root, initialDate, onDate) {
   const share = root.querySelector('#share');
   const fallback = root.querySelector('#fallback');
 
-  dateInput.min = '1900-01-01';
-  dateInput.max = '2100-12-31';
+  const minDate = '1900-01-01';
+  const maxDate = '2100-12-31';
+  dateInput.min = minDate;
+  dateInput.max = maxDate;
 
   let current = new Date(initialDate.getTime());
   let poem = null;
@@ -136,15 +139,29 @@ export function mountUI(root, initialDate, onDate) {
   next.addEventListener('click', () => emit(addShanghaiDays(current, 1), false));
   today.addEventListener('click', () => emit(new Date(), true));
 
-  dateInput.addEventListener('change', () => {
-    if (!dateInput.value) {
-      dateInput.value = formatISODateShanghai(current);
+  function commitPicker(event) {
+    const raw = dateInput.value.trim();
+    const parsed = parseCivilYMD(raw);
+    const inRange = Boolean(parsed) && raw >= minDate && raw <= maxDate;
+    if (!inRange) {
+      // iOS fires `input` with an empty value while the year wheel is moving.
+      // Writing the old date back there throws away the year they just chose.
+      if (event.type !== 'input') dateInput.value = formatISODateShanghai(current);
       return;
     }
-    const picked = withShanghaiYMD(current, dateInput.value);
+    const picked = withShanghaiYMD(current, raw);
+    if (formatISODateShanghai(picked) !== raw) {
+      if (event.type !== 'input') dateInput.value = formatISODateShanghai(current);
+      return;
+    }
+    if (raw === formatISODateShanghai(current)) return;
     if (isSameShanghaiDate(picked, new Date())) emit(new Date(), true);
     else emit(picked, false);
-  });
+  }
+
+  dateInput.addEventListener('input', commitPicker);
+  dateInput.addEventListener('change', commitPicker);
+  dateInput.addEventListener('blur', commitPicker);
 
   window.addEventListener('keydown', (event) => {
     if (event.altKey || event.metaKey || event.ctrlKey) return;

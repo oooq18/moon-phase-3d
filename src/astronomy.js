@@ -21,14 +21,42 @@ export function shanghaiParts(date) {
   for (const part of shanghaiFormat.formatToParts(date)) {
     if (part.type !== 'literal') map[part.type] = part.value;
   }
+  let hour = Number(map.hour);
+  // Some engines report midnight as 24:00 on the new civil date.
+  if (hour === 24) hour = 0;
   return {
     year: Number(map.year),
     month: Number(map.month),
     day: Number(map.day),
-    hour: Number(map.hour),
+    hour,
     minute: Number(map.minute),
     second: Number(map.second),
   };
+}
+
+const CIVIL_YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * Parse a full four-digit civil date. Years 0–99 are not shifted into the
+ * 1900s: `0001-10-26` is year 1, and it is rejected because `Date.UTC` would
+ * otherwise turn it into 1901.
+ */
+export function parseCivilYMD(iso) {
+  const match = CIVIL_YMD.exec(String(iso ?? '').trim());
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (
+    probe.getUTCFullYear() !== year
+    || probe.getUTCMonth() !== month - 1
+    || probe.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return { year, month, day };
 }
 
 export function formatISODateShanghai(date) {
@@ -56,10 +84,18 @@ export function addShanghaiDays(date, days) {
 
 /** Interpret YYYY-MM-DD as a civil date in Asia/Shanghai, keeping the clock from `date`. */
 export function withShanghaiYMD(date, iso) {
-  const [year, month, day] = iso.split('-').map(Number);
-  if (!year || !month || !day) return new Date(date.getTime());
+  const parts = parseCivilYMD(iso);
+  if (!parts) return new Date(date.getTime());
   const p = shanghaiParts(date);
-  return new Date(Date.UTC(year, month - 1, day, p.hour - 8, p.minute, p.second));
+  const hour = Number.isFinite(p.hour) && p.hour >= 0 && p.hour <= 23 ? p.hour : 12;
+  const minute = Number.isFinite(p.minute) ? p.minute : 0;
+  const second = Number.isFinite(p.second) ? p.second : 0;
+  let result = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, hour - 8, minute, second));
+  const want = formatISODateShanghai(new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 4, 0, 0)));
+  if (formatISODateShanghai(result) !== want) {
+    result = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 4, 0, 0));
+  }
+  return result;
 }
 
 export function formatDistanceKm(km) {
