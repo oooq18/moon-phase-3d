@@ -21,7 +21,7 @@ npm run preview  # serves dist/ at the same base path and port
 ## What you can do
 
 - On open, the moon shows the phase for the current Shanghai instant. Waxing light is on the right, waning on the left, celestial north up.
-- A floating instrument sits under the moon: the phase name in serif, then 月龄 (one decimal, days), 亮面比例 (one decimal percent), and 地月距离 in kilometres with thousands separators. Date controls are a single shutter. On a phone the same readouts collapse into a thin bottom dock; the NASA line stays behind 版权 until opened.
+- A floating instrument sits under the moon: the phase name in serif, then 月龄 (one decimal, days), 亮面比例 (one decimal percent), and 地月距离 in kilometres with thousands separators. Date controls are a single shutter. On a phone the same readouts collapse into a thin bottom dock.
 - Pick a civil date, or step with 前一天 / 后一天 (also ← / →). The date is read as a Shanghai calendar day; the clock time stays with you. 今天 appears only when that civil date is not today, and returns to the current instant.
 - Sun direction eases over about 680ms. The camera is fixed on the moon: dragging does not orbit or zoom. The sky is a magnitude-weighted star sphere with a faint galactic band, drifting slowly on its own.
 - If the local moon textures fail to load, a procedural cratered sphere keeps the same lighting. The page does not depend on a CDN for the moon.

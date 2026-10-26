@@ -341,25 +341,6 @@ button[hidden] {
   filter: brightness(0) invert(1);
 }
 
-#credit-toggle {
-  display: none;
-}
-
-.credit {
-  width: min(46rem, 100%);
-  margin: 0;
-  color: var(--faint);
-  font-size: 0.62rem;
-  line-height: 1.5;
-  letter-spacing: 0.02em;
-  text-align: center;
-  text-wrap: balance;
-}
-
-.credit-body {
-  margin: 0;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -394,11 +375,6 @@ button[hidden] {
     border-radius: 10px 10px 0 0;
     pointer-events: auto;
     overflow: visible;
-  }
-
-  .hud:has(.credit.is-open) {
-    max-height: 52dvh;
-    overflow: auto;
   }
 
   .caption {
@@ -482,16 +458,13 @@ button[hidden] {
   }
 
   .control-extra {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    min-height: 44px;
+    display: none;
   }
 
   .control-extra:has(#today:not([hidden])) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 44px;
   }
 
   .date-field {
@@ -507,56 +480,12 @@ button[hidden] {
     font-size: 0.75rem;
   }
 
-  .control-extra > #today,
-  .control-extra > .credit-toggle {
+  .control-extra > #today {
     box-shadow: none;
+    width: 100%;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: var(--surface);
-  }
-
-  .control-extra:has(#today:not([hidden])) #today,
-  .control-extra:has(#today:not([hidden])) .credit-toggle {
-    width: 100%;
-  }
-
-  .control-extra:not(:has(#today:not([hidden]))) .credit-toggle {
-    width: auto;
-    min-width: 44px;
-    padding: 0 4px;
-    border: 0;
-    background: transparent;
-    color: var(--muted);
-    letter-spacing: 0.16em;
-  }
-
-  .control-extra:not(:has(#today:not([hidden]))) .credit-toggle::before {
-    content: "[";
-    margin-right: 0.4em;
-  }
-
-  .control-extra:not(:has(#today:not([hidden]))) .credit-toggle::after {
-    content: "]";
-    margin-left: 0.4em;
-  }
-
-  #credit-toggle {
-    display: inline-flex;
-  }
-
-  .credit {
-    display: none;
-    width: 100%;
-    text-align: left;
-  }
-
-  .credit.is-open {
-    display: block;
-  }
-
-  .credit-body {
-    margin: 0;
-    padding-top: 4px;
   }
 }
 
@@ -584,11 +513,6 @@ button[hidden] {
     pointer-events: none;
     overflow: visible;
     max-height: none;
-  }
-
-  .hud:has(.credit.is-open) {
-    max-height: 46dvh;
-    overflow: auto;
   }
 
   .fallback {
@@ -649,17 +573,11 @@ button[hidden] {
     display: contents;
   }
 
-  .control-extra > #today,
-  .control-extra > .credit-toggle {
+  .control-extra > #today {
     width: auto;
     border: 0;
     border-radius: 0;
     background: transparent;
-  }
-
-  .control-extra:not(:has(#today:not([hidden]))) .credit-toggle::before,
-  .control-extra:not(:has(#today:not([hidden]))) .credit-toggle::after {
-    content: none;
   }
 
   .date-field {
@@ -673,20 +591,6 @@ button[hidden] {
     max-height: 44px;
   }
 
-  #credit-toggle {
-    display: inline-flex;
-  }
-
-  .credit {
-    display: none;
-    grid-column: 1 / -1;
-    width: 100%;
-    text-align: left;
-  }
-
-  .credit.is-open {
-    display: block;
-  }
 }
 
 @keyframes fade-in {
