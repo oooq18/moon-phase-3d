@@ -37,7 +37,7 @@ The light vector is not a hard-coded phase angle. It is the Sun’s direction in
 
 中秋 is the Shanghai civil date of 农历八月十五: lunar months are numbered from the winter solstice, and a thirteenth month makes the first month without a 中气 a leap month. Leap eighth months are not the festival.
 
-The star field is three shells inside the polar frame, on a black sky. Most stars are faint; only a few are bright enough to show a cool or warm tint and a soft glow. A dense faint shell gathers toward the Milky Way, which is a narrow band with dust lanes on the far shell. Point size and brightness fall off with distance, and the shells slip against each other when the date turns. 双月 uses that one sky behind both moons.
+The star field is three shells inside the polar frame, on a black sky. The faint shell is small but still bright enough to read; only the nearer stars show a cool or warm tint and a soft glow. A dense shell gathers toward the Milky Way, which stays a narrow band with dust lanes on the far shell. Point size and brightness ease off with distance, and the shells slip against each other when the date turns. 双月 uses that one sky behind both moons.
 
 ## NASA assets
 

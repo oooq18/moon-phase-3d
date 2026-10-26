@@ -70,12 +70,13 @@ function starTint(rand, magnitude) {
 
 function fluxGain(magnitude) {
   const t = Math.min(1, Math.max(0, (magnitude + 1.35) / 8.15));
-  return 1.08 - 0.7 * t ** 0.62;
+  // The faint end used to fall near 0.4, which disappears on a black clear.
+  return 1.35 - 0.78 * t ** 1.15;
 }
 
 function pointSize(magnitude) {
   const t = Math.min(1, Math.max(0, (magnitude + 1.4) / 8.4));
-  return 0.9 + 7.6 * (1 - t) ** 2.45;
+  return 2.15 + 5.8 * (1 - t) ** 1.85;
 }
 
 function haloAmount(magnitude) {
@@ -142,11 +143,15 @@ void main() {
   vHalo = aHalo;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   float dist = max(24.0, -mv.z);
-  float falloff = clamp(pow(210.0 / dist, 0.58), 0.36, 1.05);
+  // Distance still dims the far shell, but not enough to erase it on black.
+  float falloff = clamp(pow(210.0 / dist, 0.4), 0.82, 1.08);
   vColor = color * uFade * falloff;
-  float atten = clamp(pow(200.0 / dist, 0.92), 0.36, 2.7);
-  float layer = mix(1.24, 0.74, clamp(aDepth, 0.0, 1.0));
-  gl_PointSize = clamp(aSize * atten * layer * uPixelRatio * flick, 0.45, 12.0 * uPixelRatio);
+  float atten = clamp(pow(200.0 / dist, 0.5), 0.84, 2.2);
+  float layer = mix(1.12, 0.96, clamp(aDepth, 0.0, 1.0));
+  float px = max(uPixelRatio, 1.0);
+  // Floor is in CSS pixels, then scaled by the drawing-buffer ratio so a
+  // phone DPR and a 4K share keep the same apparent size.
+  gl_PointSize = clamp(aSize * atten * layer * flick, 1.9, 9.0) * px;
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -162,11 +167,13 @@ void main() {
   if (r2 > 0.25) discard;
   float r = sqrt(r2) * 2.0;
   float halo = clamp(vHalo, 0.0, 1.0);
-  float core = exp(-r * r * mix(26.0, 14.0, halo));
-  float wing = exp(-r * r * 3.3) * smoothstep(0.06, 0.6, halo);
-  float veil = exp(-r * r * 1.15) * smoothstep(0.4, 0.9, halo);
-  float alpha = clamp((core + wing * 0.4 + veil * 0.16) * vFlicker, 0.0, 1.0);
-  if (alpha < 0.012) discard;
+  // Wide enough that a ~2px point still covers its pixel. The old
+  // exp(-26) core lived in the inner third and vanished when rasterized small.
+  float core = exp(-r * r * mix(7.5, 4.2, halo));
+  float wing = exp(-r * r * 2.4) * smoothstep(0.04, 0.55, halo);
+  float veil = exp(-r * r * 0.9) * smoothstep(0.35, 0.85, halo);
+  float alpha = clamp((core + wing * 0.42 + veil * 0.18) * vFlicker, 0.0, 1.0);
+  if (alpha < 0.03) discard;
   gl_FragColor = vec4(vColor, alpha);
 }
 `;
@@ -344,9 +351,9 @@ function circleTexture() {
 export function createStars({ reducedMotion = false, mobile = false } = {}) {
   const rand = mulberry32(0x5f3759df);
   const populations = [
-    { count: mobile ? 12000 : 20000, radiusMin: 500, radiusMax: 820, magMin: 5.3, magMax: 7.3, depth: 1, sizeScale: 0.72, haloScale: 0, dim: 0.52, parallax: 0.84, plane: 0.58, spread: 0.13 },
-    { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 2.9, magMax: 5.6, depth: 0.48, sizeScale: 0.92, haloScale: 0.22, dim: 0.76, parallax: 1, plane: 0.2, spread: 0.22 },
-    { count: mobile ? 72 : 128, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.15, haloScale: 1, dim: 1, parallax: 1.16, plane: 0.06, spread: 0.3 },
+    { count: mobile ? 12000 : 20000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.84, parallax: 0.84, plane: 0.58, spread: 0.13 },
+    { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 1.5, magMax: 4.2, depth: 0.48, sizeScale: 1.05, haloScale: 0.4, dim: 1.02, parallax: 1, plane: 0.2, spread: 0.22 },
+    { count: mobile ? 72 : 128, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.22, haloScale: 1, dim: 1.16, parallax: 1.16, plane: 0.06, spread: 0.3 },
   ];
 
   const material = new THREE.ShaderMaterial({
@@ -433,12 +440,15 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
 
   return {
     object: sky,
+    get mode() {
+      return mode;
+    },
     useFallback() {
       if (mode === 'fallback') return;
       mode = 'fallback';
       const sprite = circleTexture();
       fallback = new THREE.PointsMaterial({
-        size: mobile ? 0.22 : 0.28,
+        size: mobile ? 3.1 : 2.7,
         sizeAttenuation: true,
         vertexColors: true,
         transparent: true,

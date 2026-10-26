@@ -330,6 +330,7 @@ function boot(gl) {
     console.error = shaderLog;
   }
   if (shaderFailed) stars.useFallback();
+  canvas.dataset.starfield = stars.mode;
 
   moon.assets.then((status) => {
     ui.setFallback(Boolean(status.fallback));
