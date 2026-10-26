@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { computeLunar, formatISODateShanghai } from './astronomy.js';
+import { computeLunar, formatISODateShanghai, formatShanghaiMonthDay } from './astronomy.js';
 import { createMoon } from './moon.js';
+import { poemForPhase } from './poems.js';
 import { createStars } from './stars.js';
 import { mountUI } from './ui.js';
 import './style.css';
@@ -17,7 +18,7 @@ let moonApi = null;
 let starsApi = null;
 let renderer = null;
 
-function applyDate(date, { live: nextLive, immediate }) {
+function applyDate(date, { live: nextLive, immediate, litMs }) {
   currentDate = date;
   live = nextLive;
   let info;
@@ -29,7 +30,7 @@ function applyDate(date, { live: nextLive, immediate }) {
   }
   ui.render(info, date);
   if (!moonApi) return;
-  const duration = reduceMotion ? 0 : 680;
+  const duration = reduceMotion ? 0 : (litMs ?? 680);
   moonApi.setSunDirection(info.sunDirection, {
     immediate: Boolean(immediate) || duration === 0,
     duration,
@@ -38,8 +39,11 @@ function applyDate(date, { live: nextLive, immediate }) {
 
 const ui = mountUI(document, new Date(), (date, { live: nextLive }) => {
   const previous = currentDate.getTime();
-  applyDate(date, { live: nextLive, immediate: false });
-  if (starsApi) starsApi.advance(date.getTime() - previous, performance.now());
+  const delta = date.getTime() - previous;
+  const step = !reduceMotion && Math.abs(delta) > 60000;
+  applyDate(date, { live: nextLive, immediate: false, litMs: step ? 980 : 680 });
+  if (step && moonApi) moonApi.spinBy(delta > 0 ? 3 : -3, { duration: 1760 });
+  if (starsApi) starsApi.advance(delta, performance.now());
   if (nextLive) lastLiveSample = performance.now();
 });
 
@@ -201,7 +205,37 @@ function boot(gl) {
 
 }
 
-function paintSharePlate(ctx, width, height, name) {
+const SHARE_SERIF = '"Iowan Old Style", Palatino, "Songti SC", "Noto Serif CJK SC", "Noto Sans CJK SC", serif';
+const SHARE_SANS = '"PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif';
+
+function paintTracked(ctx, text, x, y, tracking) {
+  for (const glyph of text) {
+    ctx.fillText(glyph, x, y);
+    x += ctx.measureText(glyph).width + tracking;
+  }
+  return x;
+}
+
+function wrapGlyphs(ctx, text, maxWidth, tracking) {
+  const lines = [];
+  let line = '';
+  let width = 0;
+  for (const glyph of text) {
+    const advance = ctx.measureText(glyph).width + tracking;
+    if (line && width + advance > maxWidth) {
+      lines.push(line);
+      line = glyph;
+      width = advance;
+    } else {
+      line += glyph;
+      width += advance;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+
+function paintSharePlate(ctx, width, height, caption) {
   const vignette = ctx.createRadialGradient(
     width * 0.5,
     height * 0.42,
@@ -214,19 +248,70 @@ function paintSharePlate(ctx, width, height, name) {
   vignette.addColorStop(1, 'rgba(5, 7, 13, 0.42)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, width, height);
-  if (!name || name === '—' || name === '无法计算') return;
-  const size = Math.max(28, Math.round(Math.min(width, height) * 0.052));
-  ctx.font = `400 ${size}px "Iowan Old Style", Palatino, "Songti SC", "Noto Serif CJK SC", "Noto Sans CJK SC", serif`;
-  ctx.fillStyle = 'rgba(236, 240, 246, 0.92)';
+
+  const minSide = Math.min(width, height);
+  const x0 = Math.round(width * 0.06);
+  const maxText = Math.round(width * 0.56);
+  const phaseSize = Math.max(28, Math.round(minSide * 0.05));
+  const dateSize = Math.max(16, Math.round(minSide * 0.026));
+  const poemSize = Math.max(16, Math.round(minSide * 0.028));
+  const authorSize = Math.max(14, Math.round(minSide * 0.02));
+  const phase = caption.phase;
+  const showPhase = phase && phase !== '—' && phase !== '无法计算';
+
   ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
   ctx.shadowColor = 'rgba(5, 7, 13, 0.72)';
-  ctx.shadowBlur = size * 0.4;
-  const tracking = size * 0.14;
-  let x = Math.round(width * 0.06);
-  const y = height - Math.round(height * 0.07);
-  for (const glyph of name) {
-    ctx.fillText(glyph, x, y);
-    x += ctx.measureText(glyph).width + tracking;
+
+  const stack = [];
+  if (caption.poem?.author) {
+    stack.push({
+      text: caption.poem.author,
+      size: authorSize,
+      font: SHARE_SANS,
+      color: 'rgba(236, 240, 246, 0.7)',
+      tracking: authorSize * 0.12,
+    });
+  }
+  if (caption.poem?.text) {
+    ctx.font = `400 ${poemSize}px ${SHARE_SERIF}`;
+    const wrapped = wrapGlyphs(ctx, caption.poem.text, maxText, poemSize * 0.04);
+    for (let i = wrapped.length - 1; i >= 0; i -= 1) {
+      stack.push({
+        text: wrapped[i],
+        size: poemSize,
+        font: SHARE_SERIF,
+        color: 'rgba(236, 240, 246, 0.88)',
+        tracking: poemSize * 0.04,
+      });
+    }
+  }
+  if (caption.dateLabel) {
+    stack.push({
+      text: caption.dateLabel,
+      size: dateSize,
+      font: SHARE_SANS,
+      color: 'rgba(236, 240, 246, 0.82)',
+      tracking: dateSize * 0.12,
+    });
+  }
+  if (showPhase) {
+    stack.push({
+      text: phase,
+      size: phaseSize,
+      font: SHARE_SERIF,
+      color: 'rgba(236, 240, 246, 0.92)',
+      tracking: phaseSize * 0.14,
+    });
+  }
+
+  let y = height - Math.round(height * 0.055);
+  for (const line of stack) {
+    ctx.font = `400 ${line.size}px ${line.font}`;
+    ctx.fillStyle = line.color;
+    ctx.shadowBlur = line.size * 0.35;
+    paintTracked(ctx, line.text, x0, y, line.tracking);
+    y -= Math.round(line.size * 1.45);
   }
 }
 
@@ -253,7 +338,12 @@ async function shareView(gl, scene, camera, date) {
     const ctx = plate.getContext('2d');
     ctx.drawImage(source, 0, 0);
     const phase = document.querySelector('#phase-name').textContent.trim();
-    paintSharePlate(ctx, plate.width, plate.height, phase);
+    const poem = ui.currentPoem() || poemForPhase(phase);
+    paintSharePlate(ctx, plate.width, plate.height, {
+      phase,
+      dateLabel: formatShanghaiMonthDay(date),
+      poem,
+    });
     const blob = await new Promise((resolve) => plate.toBlob(resolve, 'image/png'));
     if (!blob) return;
     const filename = `moon-${formatISODateShanghai(date)}.png`;

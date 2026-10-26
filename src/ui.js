@@ -7,9 +7,13 @@ import {
   isSameShanghaiDate,
   withShanghaiYMD,
 } from './astronomy.js';
+import { poemForPhase } from './poems.js';
 
 export function mountUI(root, initialDate, onDate) {
   const phaseName = root.querySelector('#phase-name');
+  const poemEl = root.querySelector('#poem');
+  const poemLine = root.querySelector('#poem-line');
+  const poemAuthor = root.querySelector('#poem-author');
   const age = root.querySelector('#metric-age');
   const illum = root.querySelector('#metric-illum');
   const distance = root.querySelector('#metric-dist');
@@ -24,6 +28,8 @@ export function mountUI(root, initialDate, onDate) {
   dateInput.max = '2100-12-31';
 
   let current = new Date(initialDate.getTime());
+  let poem = null;
+  let poemPhase = '';
   const timers = new WeakMap();
 
   function fadeText(el, text) {
@@ -77,9 +83,42 @@ export function mountUI(root, initialDate, onDate) {
     timers.set(el, timer);
   }
 
+  function paintPoem(next) {
+    const text = next?.text ?? '';
+    const who = next?.author ?? '';
+    const signature = `${text}\u0000${who}`;
+    if (poemEl.dataset.signature === signature) return;
+    const apply = () => {
+      poemEl.dataset.signature = signature;
+      poemLine.textContent = text;
+      poemAuthor.textContent = who;
+      poemEl.hidden = !text;
+      poemEl.classList.remove('is-dim');
+    };
+    const previous = timers.get(poemEl);
+    if (previous) window.clearTimeout(previous);
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !poemEl.dataset.signature) {
+      apply();
+      return;
+    }
+    poemEl.classList.add('is-dim');
+    const timer = window.setTimeout(() => {
+      apply();
+      timers.delete(poemEl);
+    }, 400);
+    timers.set(poemEl, timer);
+  }
+
   function render(info, date) {
     current = new Date(date.getTime());
     fadeText(phaseName, info.name);
+    if (info.name !== poemPhase) {
+      const next = poemForPhase(info.name, poem?.text);
+      poemPhase = info.name;
+      poem = next;
+      paintPoem(next);
+    }
     paintMetric(age, info.ageDays.toFixed(1), '天');
     paintMetric(illum, formatIllumination(info.illuminated).replace('%', ''), '%');
     paintMetric(distance, formatDistanceKm(info.distanceKm).replace(/\s*km$/, ''), 'km');
@@ -127,6 +166,9 @@ export function mountUI(root, initialDate, onDate) {
     },
     bindShare(handler) {
       share.addEventListener('click', () => handler(new Date(current.getTime())));
+    },
+    currentPoem() {
+      return poem ? { text: poem.text, author: poem.author } : null;
     },
     setShareEnabled(on) {
       share.disabled = !on;

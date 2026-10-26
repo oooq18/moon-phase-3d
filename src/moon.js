@@ -241,7 +241,8 @@ export function createMoon(renderer) {
   const mesh = new THREE.Mesh(geometry, material);
   // NASA maps are centered on longitude 0°. Sphere u=0.5 sits on +X;
   // a −90° yaw brings the nearside to the camera on +Z.
-  mesh.rotation.y = -Math.PI / 2;
+  const BASE_YAW = -Math.PI / 2;
+  mesh.rotation.y = BASE_YAW;
   mesh.visible = false;
 
   const anchor = new THREE.Group();
@@ -287,6 +288,27 @@ export function createMoon(renderer) {
   let lerpStart = 0;
   let lerping = false;
   let lerpMs = 680;
+  let spin = null;
+
+  /**
+   * Spin the mesh about celestial north (+Y) through several whole turns,
+   * then settle exactly on the nearside. Lighting stays in world space,
+   * so the spin does not invent a phase.
+   */
+  function spinBy(turns, { duration = 1760 } = {}) {
+    const tau = Math.PI * 2;
+    if (!Number.isFinite(turns) || turns === 0 || duration <= 0) {
+      mesh.rotation.y = BASE_YAW;
+      spin = null;
+      return;
+    }
+    const from = mesh.rotation.y;
+    let dest = from + turns * tau;
+    const cycles = Math.round((dest - BASE_YAW) / tau);
+    dest = BASE_YAW + cycles * tau;
+    if ((dest - from) * turns <= 0) dest += Math.sign(turns) * tau;
+    spin = { start: performance.now(), duration, from, to: dest };
+  }
 
   function setSunDirection(dir, { immediate = false, duration = 680 } = {}) {
     const next = new THREE.Vector3(dir.x, dir.y, dir.z);
@@ -312,6 +334,16 @@ export function createMoon(renderer) {
   }
 
   function update(now, reveal) {
+    if (spin) {
+      const t = Math.min(1, (now - spin.start) / spin.duration);
+      const eased = easeInOutCubic(t);
+      mesh.rotation.y = spin.from + (spin.to - spin.from) * eased;
+      if (t >= 1) {
+        mesh.rotation.y = BASE_YAW;
+        spin = null;
+      }
+    }
+
     if (lerping) {
       const t = Math.min(1, (now - lerpStart) / lerpMs);
       currentDir.copy(slerpDir(fromDir, toDir, easeInOutCubic(t)));
@@ -355,6 +387,7 @@ export function createMoon(renderer) {
     radius: MOON_RADIUS,
     assets,
     setSunDirection,
+    spinBy,
     update,
   };
 }

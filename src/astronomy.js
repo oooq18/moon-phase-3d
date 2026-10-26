@@ -38,6 +38,12 @@ export function formatISODateShanghai(date) {
   return `${p.year}-${month}-${day}`;
 }
 
+/** Civil month and day only, for the share image. No year, clock, or place. */
+export function formatShanghaiMonthDay(date) {
+  const p = shanghaiParts(date);
+  return `${p.month}月${p.day}日`;
+}
+
 export function isSameShanghaiDate(a, b) {
   return formatISODateShanghai(a) === formatISODateShanghai(b);
 }

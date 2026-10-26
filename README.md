@@ -21,9 +21,9 @@ npm run preview  # serves dist/ at the same base path and port
 ## What you can do
 
 - On open, the moon shows the phase for the current Shanghai instant. Waxing light is on the right, waning on the left, celestial north up.
-- A floating instrument sits under the moon: the phase name in serif, then 月龄 (one decimal, days), 亮面比例 (one decimal percent), and 地月距离 in kilometres with thousands separators. Date controls are a single shutter. On a phone the same readouts collapse into a thin bottom dock.
-- Pick a civil date, or step with 前一天 / 后一天 (also ← / →). The date is read as a Shanghai calendar day; the clock time stays with you. 今天 appears only when that civil date is not today, and returns to the current instant. 分享 saves a PNG of that day’s moon and sky (`moon-YYYY-MM-DD.png`), or hands the file to the system share sheet when the browser allows it.
-- Sun direction eases over about 680ms. The camera is fixed on the moon: dragging does not orbit or zoom. The sky is a magnitude-weighted star sphere with a faint galactic band. It drifts slowly around the polar axis, and a civil-date step turns that same sphere with the change — forward one way, backward the other — before the slow drift resumes.
+- A floating instrument sits under the moon: the phase name in serif, a short classical line for that phase with its author, then 月龄 (one decimal, days), 亮面比例 (one decimal percent), and 地月距离 in kilometres with thousands separators. The line is chosen at random from ten public-domain couplets for each phase name, and a new one is drawn only when the name changes. Date controls are a single shutter. On a phone the same readouts collapse into a thin bottom dock.
+- Pick a civil date, or step with 前一天 / 后一天 (also ← / →). The date is read as a Shanghai calendar day; the clock time stays with you. 今天 appears only when that civil date is not today, and returns to the current instant. 分享 saves a PNG of that day’s moon and sky (`moon-YYYY-MM-DD.png`), or hands the file to the system share sheet when the browser allows it. The image carries the phase, the civil date as 几月几日, and the same line and author shown in the instrument.
+- The camera is fixed on the moon: dragging does not orbit or zoom. A civil-date step spins the moon through three turns about celestial north — forward one way, backward the other — then eases to a stop on the nearside, while the sunlight eases to that day’s direction. The moon does not keep spinning. People who prefer reduced motion get the new light without the turns. The sky is a magnitude-weighted star sphere with a faint galactic band. It drifts slowly around the polar axis, and the same date step turns that sphere before the slow drift resumes.
 - If the local moon textures fail to load, a procedural cratered sphere keeps the same lighting. The page does not depend on a CDN for the moon.
 
 ## Astronomy
@@ -63,7 +63,8 @@ src/main.js          scene, fixed camera, framing
 src/moon.js          mesh, NASA textures, lighting, fallback shader
 src/stars.js         procedural star field
 src/astronomy.js     Shanghai dates and astronomy-engine
-src/ui.js            panel, date controls
+src/poems.js         classical lines for each phase name
+src/ui.js            panel, date controls, verse
 src/style.css
 public/assets/moon/  local NASA color map and bump
 .github/workflows/deploy-pages.yml
