@@ -23,7 +23,7 @@ npm run preview  # serves dist/ at the same base path and port
 - On open, the moon shows the phase for the current Shanghai instant. Waxing light is on the right, waning on the left, celestial north up.
 - The glass panel lists 月相名称, 月龄 (one decimal, days), 亮面比例 (one decimal percent), and 地月距离 in kilometres with thousands separators.
 - Pick a civil date, or step with 前一天 / 后一天 (also ← / →). The date is read as a Shanghai calendar day; the clock time stays with you. 今天 appears only when that civil date is not today, and returns to the current instant.
-- Sun direction eases over about 680ms. Drag to orbit (damped). Touch drag rotates; pinch zooms. The star field is parented to the same celestial frame, so it turns with the view, plus a slow drift and a slight twinkle.
+- Sun direction eases over about 680ms. The camera is fixed on the moon: dragging does not orbit or zoom. A distant star shell turns slowly on its own.
 - If the local moon textures fail to load, a procedural cratered sphere keeps the same lighting. The page does not depend on a CDN for the moon.
 
 ## Astronomy
@@ -59,7 +59,7 @@ To publish without Actions, build locally and either push `dist/` to a `gh-pages
 index.html
 vite.config.js
 package.json
-src/main.js          scene, orbit, framing
+src/main.js          scene, fixed camera, framing
 src/moon.js          mesh, NASA textures, lighting, fallback shader
 src/stars.js         procedural star field
 src/astronomy.js     Shanghai dates and astronomy-engine

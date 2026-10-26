@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { computeLunar } from './astronomy.js';
 import { createMoon } from './moon.js';
 import { createStars } from './stars.js';
@@ -70,82 +69,96 @@ function boot(gl) {
   gl.setClearColor(0x070b12, 1);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 400);
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 500);
   camera.position.set(0, 0, 8);
-
-  const controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.enablePan = false;
-  controls.rotateSpeed = 0.42;
-  controls.zoomSpeed = 0.55;
-  controls.minPolarAngle = Math.PI * 0.12;
-  controls.maxPolarAngle = Math.PI * 0.88;
-  controls.touches.ONE = THREE.TOUCH.ROTATE;
-  controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
 
   const moon = createMoon(gl);
   moonApi = moon;
-  const stars = createStars();
+  moon.anchor.traverse((obj) => {
+    if (obj.isMesh) obj.renderOrder = 2;
+  });
+  const stars = createStars({ reducedMotion: reduceMotion });
   stars.setPixelRatio(gl.getPixelRatio());
-  moon.anchor.add(stars.object);
+  scene.add(stars.object);
   scene.add(moon.anchor);
+
+  const pointRange = gl.getContext().getParameter(gl.getContext().ALIASED_POINT_SIZE_RANGE);
+  if (!pointRange || pointRange[1] < 4) stars.useFallback();
 
   mountGrain();
 
-  let framedOnce = false;
-  let lastFitDist = 8;
+  const brand = document.querySelector('.brand');
 
-  function frameCamera(preserveOrbit) {
-    const vh = window.innerHeight;
+  function frameCamera() {
     const vw = window.innerWidth;
-    const panelTop = panel.getBoundingClientRect().top || vh;
-    const topGap = vw < 720 ? 72 : 24;
-    const availH = Math.max(150, panelTop - topGap - 20);
-    const targetPx = Math.max(150, Math.min(availH * 0.9, vw * 0.8, vh * 0.7));
+    const vh = window.innerHeight;
+    const mobile = vw <= 720;
+    const shortSide = Math.min(vw, vh);
+    const landscapeShort = shortSide <= 520 && vw > vh;
+    const brandRect = brand.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const gap = landscapeShort ? 14 : mobile ? 20 : 40;
+    const topPad = landscapeShort ? 8 : mobile ? 14 : 12;
+    const topLimit = Math.max(brandRect.bottom, 0) + topPad;
+    let panelTop = panelRect.top;
+    const panelLooksUnmeasured = panelRect.height < 24 || panelTop < vh * 0.3;
+    if (panelLooksUnmeasured) panelTop = vh * (mobile ? 0.64 : 0.72);
+    const bottomLimit = panelTop - gap;
+    const availH = Math.max(88, bottomLimit - topLimit);
+    const side = landscapeShort ? 18 : mobile ? 22 : 48;
+    const widthCap = (vw - side * 2) * (landscapeShort ? 0.42 : mobile ? 0.88 : 0.64);
+    const heightCap = availH * (landscapeShort ? 0.9 : 0.86);
+    const vhCap = vh * (landscapeShort ? 0.46 : mobile ? 0.54 : 0.58);
+    const targetPx = Math.max(88, Math.min(heightCap, widthCap, vhCap));
     const vFov = THREE.MathUtils.degToRad(camera.fov);
-    const fitDist = (moon.radius * vh) / (Math.tan(vFov / 2) * targetPx);
-    const freeCenter = topGap + availH / 2;
-    const y = ((vh * 0.5 - freeCenter) * (2 * Math.tan(vFov / 2) * fitDist)) / vh;
+    const tanHalf = Math.tan(vFov / 2);
+    const fitDist = (moon.radius * vh) / (tanHalf * targetPx);
+    const freeCenter = topLimit + availH / 2;
+    // Camera stays on the view axis. Shifting the moon in world Y moves it
+    // toward the free band above the panel; moving the camera with it would
+    // cancel that and leave the disk viewport-centered.
+    const y = fitDist * tanHalf * ((vh - 2 * freeCenter) / vh);
 
-    let polar = Math.PI / 2;
-    let azimuth = 0;
-    let radius = fitDist;
-    if (preserveOrbit && framedOnce) {
-      const relative = camera.position.clone().sub(controls.target);
-      const spherical = new THREE.Spherical().setFromVector3(relative);
-      polar = spherical.phi;
-      azimuth = spherical.theta;
-      const ratio = spherical.radius / lastFitDist;
-      radius = THREE.MathUtils.clamp(fitDist * ratio, fitDist * 0.8, fitDist * 1.65);
-    }
-
-    lastFitDist = fitDist;
-    framedOnce = true;
-    moon.anchor.position.y = y;
-    controls.target.set(0, y, 0);
-    const offset = new THREE.Vector3().setFromSphericalCoords(radius, polar, azimuth);
-    camera.position.copy(controls.target).add(offset);
-    controls.minDistance = fitDist * 0.78;
-    controls.maxDistance = fitDist * 1.75;
+    moon.anchor.position.set(0, y, 0);
+    stars.object.position.set(0, 0, 0);
+    camera.position.set(0, 0, fitDist);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(0, 0, 0);
     camera.aspect = vw / Math.max(1, vh);
     camera.updateProjectionMatrix();
+    gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    stars.setPixelRatio(gl.getPixelRatio());
     gl.setSize(vw, vh, false);
-    controls.update();
   }
 
   const introStart = performance.now();
 
   applyDate(new Date(), { live: true, immediate: true });
-  frameCamera(false);
+  frameCamera();
+
+  const shaderLog = console.error;
+  let shaderFailed = false;
+  console.error = (...args) => {
+    if (/shader/i.test(args.map(String).join(' '))) shaderFailed = true;
+    shaderLog.apply(console, args);
+  };
+  try {
+    gl.compile(scene, camera);
+  } finally {
+    console.error = shaderLog;
+  }
+  if (shaderFailed) stars.useFallback();
 
   moon.assets.then((status) => {
     ui.setFallback(Boolean(status.fallback));
   });
 
-  const resizeObserver = new ResizeObserver(() => frameCamera(true));
+  const resizeObserver = new ResizeObserver(() => frameCamera());
   resizeObserver.observe(panel);
-  window.addEventListener('resize', () => frameCamera(true));
+  if (brand) resizeObserver.observe(brand);
+  window.addEventListener('resize', frameCamera);
+  window.visualViewport?.addEventListener('resize', frameCamera);
+  requestAnimationFrame(frameCamera);
 
   canvas.addEventListener('webglcontextlost', (event) => {
     event.preventDefault();
@@ -169,9 +182,8 @@ function boot(gl) {
     const intro = Math.min(1, (now - introStart) / introDur);
     const reveal = 1 - (1 - intro) ** 3;
     moon.update(now, reveal);
-    stars.setFade(Math.min(1, reveal * 1.05));
+    stars.setFade(Math.min(1, reveal * 1.4));
     stars.update(now * 0.001);
-    controls.update();
     gl.render(scene, camera);
   }
 

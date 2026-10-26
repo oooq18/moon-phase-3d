@@ -30,17 +30,34 @@ function kelvinToRgb(kelvin) {
   return [clamp(r), clamp(g), clamp(b)];
 }
 
-function starColor(rand) {
+function starColor(rand, bright) {
   const pick = rand();
   let kelvin;
-  if (pick < 0.1) kelvin = 3400 + rand() * 700;
-  else if (pick < 0.38) kelvin = 4800 + rand() * 1400;
-  else kelvin = 6800 + rand() * 4200;
+  if (pick < 0.12) kelvin = 3600 + rand() * 800;
+  else if (pick < 0.4) kelvin = 5000 + rand() * 1200;
+  else kelvin = 7000 + rand() * 4500;
   const [r, g, b] = kelvinToRgb(kelvin);
-  const sat = 0.42;
+  const sat = 0.32;
   const white = 1 - sat;
-  const gain = 0.55 + rand() * 0.45;
+  const gain = bright ? 1.02 + rand() * 0.22 : 0.84 + rand() * 0.26;
   return [(r * sat + white) * gain, (g * sat + white) * gain, (b * sat + white) * gain];
+}
+
+function circleTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  glow.addColorStop(0, 'rgba(255,255,255,1)');
+  glow.addColorStop(0.28, 'rgba(255,255,255,0.95)');
+  glow.addColorStop(0.55, 'rgba(255,255,255,0.35)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, 64, 64);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
 const vertexShader = /* glsl */ `
@@ -55,10 +72,12 @@ uniform float uFade;
 
 void main() {
   vColor = color;
-  float tw = 1.0 - aTwinkle + aTwinkle * (0.82 + 0.18 * sin(uTime * (0.35 + aPhase * 0.7) + aPhase * 6.28318));
+  float tw = 1.0 - aTwinkle + aTwinkle * (0.78 + 0.22 * sin(uTime * (0.28 + aPhase * 0.55) + aPhase * 6.28318));
   vTwinkle = tw * uFade;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = max(1.15, aSize * uPixelRatio * tw * (168.0 / max(1.0, -mv.z)));
+  float dist = max(36.0, -mv.z);
+  float size = aSize * uPixelRatio * (82.0 / dist) * (0.9 + 0.1 * tw);
+  gl_PointSize = clamp(size, 1.75, 6.2 * uPixelRatio);
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -71,40 +90,59 @@ void main() {
   vec2 p = gl_PointCoord - vec2(0.5);
   float d = length(p);
   if (d > 0.5) discard;
-  float core = smoothstep(0.5, 0.08, d);
-  float alpha = core * vTwinkle;
-  gl_FragColor = vec4(vColor * alpha, alpha);
+  float core = smoothstep(0.5, 0.02, d);
+  float glow = smoothstep(0.5, 0.18, d);
+  float alpha = (0.42 + 0.58 * glow) * vTwinkle;
+  vec3 col = vColor * (0.72 + 0.85 * core);
+  gl_FragColor = vec4(col, alpha);
 }
 `;
 
-export function createStars() {
+export function createStars({ reducedMotion = false } = {}) {
   const rand = mulberry32(0x51a7c3);
-  const count = 2400;
+  const count = 4600;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const sizes = new Float32Array(count);
   const phases = new Float32Array(count);
   const twinkles = new Float32Array(count);
+  const capCos = Math.cos(THREE.MathUtils.degToRad(66));
 
   for (let i = 0; i < count; i += 1) {
-    const far = rand() > 0.28;
-    const radius = far ? 78 + rand() * 36 : 46 + rand() * 18;
-    const theta = rand() * Math.PI * 2;
-    const phi = Math.acos(2 * rand() - 1);
-    const sinPhi = Math.sin(phi);
-    positions[i * 3] = radius * sinPhi * Math.cos(theta);
-    positions[i * 3 + 1] = radius * Math.cos(phi);
-    positions[i * 3 + 2] = radius * sinPhi * Math.sin(theta);
+    const inCap = rand() < 0.88;
+    let x;
+    let y;
+    let z;
+    if (inCap) {
+      const cosA = capCos + rand() * (1 - capCos);
+      const sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
+      const theta = rand() * Math.PI * 2;
+      x = sinA * Math.cos(theta);
+      y = sinA * Math.sin(theta);
+      z = -cosA;
+    } else {
+      const phi = Math.acos(2 * rand() - 1);
+      const theta = rand() * Math.PI * 2;
+      const sinPhi = Math.sin(phi);
+      x = sinPhi * Math.cos(theta);
+      y = Math.cos(phi);
+      z = sinPhi * Math.sin(theta);
+    }
 
-    const [r, g, b] = starColor(rand);
+    const radius = 64 + rand() * 52;
+    positions[i * 3] = radius * x;
+    positions[i * 3 + 1] = radius * y;
+    positions[i * 3 + 2] = radius * z;
+
+    const bright = rand() < 0.07;
+    const [r, g, b] = starColor(rand, bright);
     colors[i * 3] = r;
     colors[i * 3 + 1] = g;
     colors[i * 3 + 2] = b;
-
-    const sizeRoll = rand();
-    sizes[i] = far ? 0.35 + sizeRoll ** 2 * 1.15 : 0.55 + sizeRoll ** 2 * 1.7;
+    const roll = rand();
+    sizes[i] = bright ? 4.2 + roll * 2.0 : 2.55 + roll * 1.55;
     phases[i] = rand();
-    twinkles[i] = rand() < 0.72 ? 0.22 + rand() * 0.45 : 0.05;
+    twinkles[i] = rand() < 0.55 ? 0.12 + rand() * 0.22 : 0.02;
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -124,27 +162,58 @@ export function createStars() {
     fragmentShader,
     transparent: true,
     depthWrite: false,
+    depthTest: true,
     blending: THREE.AdditiveBlending,
     vertexColors: true,
   });
 
   const points = new THREE.Points(geometry, material);
   points.frustumCulled = false;
+  points.renderOrder = -1;
   const group = new THREE.Group();
   group.add(points);
 
+  let mode = 'shader';
+  let fallback = null;
+
+  function makeFallback() {
+    const sprite = circleTexture();
+    return new THREE.PointsMaterial({
+      size: 0.36,
+      sizeAttenuation: true,
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      depthTest: true,
+      blending: THREE.AdditiveBlending,
+      map: sprite,
+      alphaMap: sprite,
+      opacity: 0.95,
+    });
+  }
+
   return {
     object: group,
+    usesShader() {
+      return mode === 'shader';
+    },
+    useFallback() {
+      if (mode === 'fallback') return;
+      mode = 'fallback';
+      fallback = makeFallback();
+      points.material = fallback;
+      material.dispose();
+    },
     setPixelRatio(value) {
-      material.uniforms.uPixelRatio.value = value;
+      if (mode === 'shader') material.uniforms.uPixelRatio.value = value;
     },
     setFade(value) {
-      material.uniforms.uFade.value = value;
+      if (mode === 'shader') material.uniforms.uFade.value = value;
+      else if (fallback) fallback.opacity = 0.35 + 0.65 * value;
     },
     update(elapsed) {
-      material.uniforms.uTime.value = elapsed;
-      group.rotation.y = elapsed * 0.006;
-      group.rotation.x = Math.sin(elapsed * 0.045) * 0.018;
+      if (mode === 'shader') material.uniforms.uTime.value = elapsed;
+      if (!reducedMotion) group.rotation.y = elapsed * 0.012;
     },
   };
 }

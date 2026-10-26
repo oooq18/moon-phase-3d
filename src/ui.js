@@ -20,6 +20,8 @@ export function mountUI(root, initialDate, onDate) {
   const next = root.querySelector('#next');
   const today = root.querySelector('#today');
   const fallback = root.querySelector('#fallback');
+  const credit = root.querySelector('.credit');
+  const creditToggle = root.querySelector('#credit-toggle');
 
   dateInput.min = '1900-01-01';
   dateInput.max = '2100-12-31';
@@ -76,6 +78,13 @@ export function mountUI(root, initialDate, onDate) {
     if (isSameShanghaiDate(picked, new Date())) emit(new Date(), true);
     else emit(picked, false);
   });
+
+  if (credit && creditToggle) {
+    creditToggle.addEventListener('click', () => {
+      const open = credit.classList.toggle('is-open');
+      creditToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  }
 
   window.addEventListener('keydown', (event) => {
     if (event.altKey || event.metaKey || event.ctrlKey) return;
