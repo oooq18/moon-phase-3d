@@ -320,25 +320,14 @@ export function createMoon(renderer) {
   }
 
   /**
-   * Move the mesh about celestial north, then stop on the nearside.
-   * `turns` is a few full revolutions for a long date jump.
-   * `sway` is a small there-and-back nod for a single day.
-   * The sun direction is rotated by the same yaw, so the terminator
-   * stays glued to the ball while it moves.
+   * Spin the mesh about celestial north through whole turns, then stop
+   * on the nearside. The sun direction uses the same yaw, so the terminator
+   * stays on the ball. A one-day step does not call this: that path only
+   * eases the light, with no out-and-back nod.
    */
-  function spinBy(turns, { duration = 1760, now = performance.now(), sway = 0 } = {}) {
+  function spinBy(turns, { duration = 1760, now = performance.now() } = {}) {
     const tau = Math.PI * 2;
-    if (duration <= 0) {
-      mesh.rotation.y = BASE_YAW;
-      spin = null;
-      paintLight();
-      return;
-    }
-    if (sway) {
-      spin = { mode: 'sway', start: now, duration, from: mesh.rotation.y, sway };
-      return;
-    }
-    if (!Number.isFinite(turns) || turns === 0) {
+    if (duration <= 0 || !Number.isFinite(turns) || turns === 0) {
       mesh.rotation.y = BASE_YAW;
       spin = null;
       paintLight();
@@ -375,13 +364,8 @@ export function createMoon(renderer) {
   function update(now, reveal) {
     if (spin) {
       const t = Math.min(1, (now - spin.start) / spin.duration);
-      if (spin.mode === 'sway') {
-        const residual = (spin.from - BASE_YAW) * (1 - t);
-        mesh.rotation.y = BASE_YAW + residual + spin.sway * Math.sin(Math.PI * t);
-      } else {
-        const eased = easeInOutCubic(t);
-        mesh.rotation.y = spin.from + (spin.to - spin.from) * eased;
-      }
+      const eased = easeInOutCubic(t);
+      mesh.rotation.y = spin.from + (spin.to - spin.from) * eased;
       if (t >= 1) {
         mesh.rotation.y = BASE_YAW;
         spin = null;

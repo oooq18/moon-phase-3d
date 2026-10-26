@@ -49,9 +49,8 @@ function applyDate(date, { live: nextLive, immediate, litMs, settle = 'even', no
 
 const LARGE_DAY = 1.5;
 const LARGE_MS = 1760;
-const GENTLE_MS = 1500;
+const GENTLE_MS = 1100;
 const MOON_TURNS = 3;
-const MOON_SWAY = 0.42;
 
 const ui = mountUI(document, new Date(), (date, { live: nextLive }) => {
   const previous = currentDate.getTime();
@@ -69,9 +68,8 @@ const ui = mountUI(document, new Date(), (date, { live: nextLive }) => {
     now,
     sky: 'handled',
   });
-  if (move && moonApi) {
-    if (large) moonApi.spinBy(Math.sign(delta) * MOON_TURNS, { duration: motionMs, now });
-    else moonApi.spinBy(0, { duration: motionMs, now, sway: Math.sign(delta) * MOON_SWAY });
+  if (move && large && moonApi) {
+    moonApi.spinBy(Math.sign(delta) * MOON_TURNS, { duration: motionMs, now });
   }
   if (starsApi && Math.abs(delta) > 60000) {
     starsApi.advance(delta, now, {

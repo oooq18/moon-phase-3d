@@ -240,19 +240,32 @@ function fillPopulation(rand, count, spec) {
 export const SKY_POSE_PER_DAY = (108 * Math.PI) / 180;
 export const SKY_MAX_NIGHTS = 4;
 
-/** How many nights the sky turns through. One day is one night; long jumps cap at four. */
+/**
+ * Extra full nights beyond the day's own pose step.
+ * One civil day is only that step (one night, no added lap).
+ * Longer jumps add several nights and cap at four.
+ */
 export function diurnalNights(absDays) {
-  if (!(absDays > 0)) return 0;
-  if (absDays < 1.5) return 1;
+  if (!(absDays >= 1.5)) return 0;
   return Math.min(SKY_MAX_NIGHTS, Math.max(2, Math.round(absDays)));
 }
 
-/** Travel `nights` turns in `sign`'s direction and land on `pose` (mod 2π). */
+/**
+ * Land on `pose` (mod 2π). With no extra nights the path is the single
+ * forward step, so it does not travel a full lap and then come back.
+ * Extra nights keep the long-jump whirl, still ending on that pose.
+ */
 export function starDestination(from, pose, sign, nights) {
   const tau = Math.PI * 2;
+  const dir = sign < 0 ? -1 : 1;
   const turns = nights > 0 ? nights : 0;
-  const anchor = turns ? from + sign * turns * tau : from;
-  return pose + Math.round((anchor - pose) / tau) * tau;
+  const anchor = from + dir * turns * tau;
+  let dest = pose + Math.round((anchor - pose) / tau) * tau;
+  if (turns === 0) {
+    if (dir > 0 && dest < from) dest += tau;
+    else if (dir < 0 && dest > from) dest -= tau;
+  }
+  return dest;
 }
 
 function circleTexture() {
@@ -349,6 +362,8 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   let mode = 'shader';
   let fallback = null;
   const idleRate = reducedMotion ? 0 : 0.0017;
+  let idleBias = 0;
+  let idleFrozen = null;
   let dateAngle = 0;
   let animFrom = 0;
   let animTo = 0;
@@ -413,12 +428,12 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
       if (!Number.isFinite(days) || Math.abs(days) < 1 / 86400) return;
       const sign = Math.sign(days) || 1;
       const from = sampleDate(now);
-      const spinNights = reducedMotion || duration <= 0 ? 0 : nights;
-      const dest = starDestination(from, pose, sign, spinNights);
+      const snap = reducedMotion || duration <= 0;
+      const dest = starDestination(from, pose, sign, snap ? 0 : nights);
       animFrom = from;
       animTo = dest;
       animStart = now;
-      if (spinNights === 0 || duration <= 0) {
+      if (snap || Math.abs(dest - from) < 1e-4) {
         dateAngle = dest;
         animDur = 0;
         return;
@@ -428,11 +443,21 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
     update(now) {
       const seconds = now * 0.001;
       if (mode === 'shader') material.uniforms.uTime.value = seconds;
-      drift.rotation.y = seconds * idleRate;
       const angle = sampleDate(now);
       shells.forEach((shell) => {
         shell.rotation.y = shell.userData.parallax * angle;
       });
+      const liveIdle = seconds * idleRate;
+      if (animDur > 0) {
+        if (idleFrozen == null) idleFrozen = drift.rotation.y;
+        drift.rotation.y = idleFrozen;
+      } else {
+        if (idleFrozen != null) {
+          idleBias = idleFrozen - liveIdle;
+          idleFrozen = null;
+        }
+        drift.rotation.y = liveIdle + idleBias;
+      }
     },
   };
 }
