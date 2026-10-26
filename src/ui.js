@@ -1,11 +1,13 @@
 import {
-  addShanghaiDays,
   formatAge,
   formatDistanceKm,
   formatIllumination,
   formatISODateShanghai,
+  isCivilIsoInRange,
   isSameShanghaiDate,
-  parseCivilYMD,
+  MAX_CIVIL_ISO,
+  MIN_CIVIL_ISO,
+  stepShanghaiDays,
   withShanghaiYMD,
 } from './astronomy.js';
 import { poemForPhase } from './poems.js';
@@ -25,8 +27,8 @@ export function mountUI(root, initialDate, onDate) {
   const share = root.querySelector('#share');
   const fallback = root.querySelector('#fallback');
 
-  const minDate = '1900-01-01';
-  const maxDate = '2100-12-31';
+  const minDate = MIN_CIVIL_ISO;
+  const maxDate = MAX_CIVIL_ISO;
   dateInput.min = minDate;
   dateInput.max = maxDate;
 
@@ -127,6 +129,8 @@ export function mountUI(root, initialDate, onDate) {
     paintMetric(distance, formatDistanceKm(info.distanceKm).replace(/\s*km$/, ''), 'km');
     const iso = formatISODateShanghai(date);
     if (dateInput.value !== iso) dateInput.value = iso;
+    prev.disabled = iso <= minDate;
+    next.disabled = iso >= maxDate;
     const showToday = !isSameShanghaiDate(date, new Date());
     today.hidden = !showToday;
   }
@@ -135,14 +139,19 @@ export function mountUI(root, initialDate, onDate) {
     onDate(new Date(date.getTime()), { live });
   }
 
-  prev.addEventListener('click', () => emit(addShanghaiDays(current, -1), false));
-  next.addEventListener('click', () => emit(addShanghaiDays(current, 1), false));
+  function step(days) {
+    const next = stepShanghaiDays(current, days);
+    if (formatISODateShanghai(next) === formatISODateShanghai(current)) return;
+    emit(next, false);
+  }
+
+  prev.addEventListener('click', () => step(-1));
+  next.addEventListener('click', () => step(1));
   today.addEventListener('click', () => emit(new Date(), true));
 
   function commitPicker(event) {
     const raw = dateInput.value.trim();
-    const parsed = parseCivilYMD(raw);
-    const inRange = Boolean(parsed) && raw >= minDate && raw <= maxDate;
+    const inRange = isCivilIsoInRange(raw);
     if (!inRange) {
       // iOS fires `input` with an empty value while the year wheel is moving.
       // Writing the old date back there throws away the year they just chose.
@@ -169,10 +178,10 @@ export function mountUI(root, initialDate, onDate) {
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      emit(addShanghaiDays(current, -1), false);
+      step(-1);
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      emit(addShanghaiDays(current, 1), false);
+      step(1);
     }
   });
 

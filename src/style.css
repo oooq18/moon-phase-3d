@@ -319,6 +319,16 @@ body {
   cursor: pointer;
 }
 
+.cluster button:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.cluster button:disabled:hover {
+  color: rgba(232, 236, 243, 0.72);
+  background: transparent;
+}
+
 button[hidden] {
   display: none !important;
 }

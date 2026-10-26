@@ -74,10 +74,9 @@ function pointSize(magnitude) {
 }
 
 function haloAmount(magnitude) {
-  if (magnitude > 3.1) return 0;
-  if (magnitude > 2) return 0.12;
-  if (magnitude > 0.8) return 0.38;
-  return 0.72 + Math.max(0, 0.8 - magnitude) * 0.2;
+  if (magnitude > 1.6) return 0;
+  if (magnitude > 0.4) return 0.22;
+  return 0.4;
 }
 
 function placeOnSphere(rand, radius) {
@@ -92,6 +91,7 @@ attribute float aSize;
 attribute float aHalo;
 attribute float aPhase;
 attribute float aTwinkle;
+attribute float aDepth;
 varying vec3 vColor;
 varying float vHalo;
 varying float vFlicker;
@@ -103,12 +103,14 @@ uniform float uTwinkle;
 void main() {
   float flick = 1.0 + uTwinkle * aTwinkle * sin(uTime * (0.17 + aPhase * 0.11) + aPhase * 6.2831853);
   vFlicker = flick;
-  vColor = color * uFade;
   vHalo = aHalo;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  float dist = max(48.0, -mv.z);
-  float atten = clamp(150.0 / dist, 0.62, 1.28);
-  gl_PointSize = clamp(aSize * atten * uPixelRatio * flick, 1.0, 6.4 * uPixelRatio);
+  float dist = max(24.0, -mv.z);
+  float falloff = clamp(pow(210.0 / dist, 0.58), 0.36, 1.05);
+  vColor = color * uFade * falloff;
+  float atten = clamp(pow(200.0 / dist, 0.92), 0.36, 2.7);
+  float layer = mix(1.24, 0.74, clamp(aDepth, 0.0, 1.0));
+  gl_PointSize = clamp(aSize * atten * layer * uPixelRatio * flick, 0.5, 7.4 * uPixelRatio);
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -123,9 +125,9 @@ void main() {
   float r2 = dot(q, q);
   if (r2 > 0.25) discard;
   float r = sqrt(r2) * 2.0;
-  float core = exp(-r * r * mix(11.0, 5.2, clamp(vHalo, 0.0, 1.0)));
-  float wing = exp(-r * r * 1.85) * vHalo;
-  float alpha = clamp((core + wing * 0.42) * vFlicker, 0.0, 1.0);
+  float core = exp(-r * r * mix(16.0, 10.0, clamp(vHalo, 0.0, 1.0)));
+  float wing = exp(-r * r * 4.6) * smoothstep(0.18, 0.55, vHalo);
+  float alpha = clamp((core + wing * 0.16) * vFlicker, 0.0, 1.0);
   if (alpha < 0.012) discard;
   gl_FragColor = vec4(vColor, alpha);
 }
@@ -177,37 +179,50 @@ void main() {
   float fine = noise(dir * 9.5 + 4.0);
   float lanes = smoothstep(0.22, 0.72, clumps);
   float dust = smoothstep(0.62, 0.28, fine);
-  float alpha = ribbon * lanes * (0.4 + 0.6 * dust) * 0.1 * uFade;
-  vec3 col = vec3(0.62, 0.68, 0.78);
+  float alpha = ribbon * lanes * (0.36 + 0.64 * dust) * 0.075 * uFade;
+  vec3 col = vec3(0.52, 0.6, 0.72);
   gl_FragColor = vec4(col, alpha);
 }
 `;
 
-function fillPopulation(rand, count, { radiusMin, radiusMax, magMin, magMax }) {
+function fillPopulation(rand, count, spec) {
+  const {
+    radiusMin,
+    radiusMax,
+    magMin,
+    magMax,
+    depth = 0.5,
+    sizeScale = 1,
+    haloScale = 1,
+    dim = 1,
+  } = spec;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const sizes = new Float32Array(count);
   const halos = new Float32Array(count);
   const phases = new Float32Array(count);
   const twinkles = new Float32Array(count);
+  const depths = new Float32Array(count);
 
   for (let i = 0; i < count; i += 1) {
-    const radius = radiusMin + rand() * (radiusMax - radiusMin);
+    const u = rand();
+    const radius = radiusMin + (u * u) * (radiusMax - radiusMin);
     const [x, y, z] = placeOnSphere(rand, radius);
     positions[i * 3] = x;
     positions[i * 3 + 1] = y;
     positions[i * 3 + 2] = z;
 
     const magnitude = sampleMagnitude(rand, magMax, magMin);
-    const gain = fluxGain(magnitude) * (0.92 + rand() * 0.16);
+    const gain = fluxGain(magnitude) * dim * (0.88 + rand() * 0.2);
     const [r, g, b] = starTint(rand, magnitude);
     colors[i * 3] = r * gain;
     colors[i * 3 + 1] = g * gain;
     colors[i * 3 + 2] = b * gain;
-    sizes[i] = pointSize(magnitude) * (0.92 + rand() * 0.16);
-    halos[i] = haloAmount(magnitude);
+    sizes[i] = pointSize(magnitude) * sizeScale * (0.86 + rand() * 0.28);
+    halos[i] = haloAmount(magnitude) * haloScale;
     phases[i] = rand();
-    twinkles[i] = magnitude < 2.4 && rand() < 0.45 ? 0.025 + rand() * 0.02 : 0;
+    twinkles[i] = magnitude < 1.8 && depth < 0.5 && rand() < 0.4 ? 0.02 + rand() * 0.016 : 0;
+    depths[i] = depth;
   }
 
   const geometry = new THREE.BufferGeometry();
@@ -217,7 +232,27 @@ function fillPopulation(rand, count, { radiusMin, radiusMax, magMin, magMax }) {
   geometry.setAttribute('aHalo', new THREE.BufferAttribute(halos, 1));
   geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
   geometry.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkles, 1));
+  geometry.setAttribute('aDepth', new THREE.BufferAttribute(depths, 1));
   return geometry;
+}
+
+/** Resting sky shift per civil day. Not a whole turn, so neighboring dates differ. */
+export const SKY_POSE_PER_DAY = (108 * Math.PI) / 180;
+export const SKY_MAX_NIGHTS = 4;
+
+/** How many nights the sky turns through. One day is one night; long jumps cap at four. */
+export function diurnalNights(absDays) {
+  if (!(absDays > 0)) return 0;
+  if (absDays < 1.5) return 1;
+  return Math.min(SKY_MAX_NIGHTS, Math.max(2, Math.round(absDays)));
+}
+
+/** Travel `nights` turns in `sign`'s direction and land on `pose` (mod 2π). */
+export function starDestination(from, pose, sign, nights) {
+  const tau = Math.PI * 2;
+  const turns = nights > 0 ? nights : 0;
+  const anchor = turns ? from + sign * turns * tau : from;
+  return pose + Math.round((anchor - pose) / tau) * tau;
 }
 
 function circleTexture() {
@@ -248,12 +283,11 @@ function circleTexture() {
 export function createStars({ reducedMotion = false, mobile = false } = {}) {
   const rand = mulberry32(0x5f3759df);
   const populations = [
-    { count: mobile ? 9000 : 17000, radiusMin: 220, radiusMax: 270, magMin: 3.2, magMax: 6.7 },
-    { count: mobile ? 2400 : 4200, radiusMin: 128, radiusMax: 176, magMin: 1.4, magMax: 6.1 },
-    { count: mobile ? 900 : 1200, radiusMin: 108, radiusMax: 148, magMin: -1.4, magMax: 2.5 },
+    { count: mobile ? 11000 : 19000, radiusMin: 480, radiusMax: 820, magMin: 4.8, magMax: 6.9, depth: 1, sizeScale: 0.62, haloScale: 0, dim: 0.5, parallax: 0.84 },
+    { count: mobile ? 2800 : 5000, radiusMin: 230, radiusMax: 360, magMin: 2.2, magMax: 5.1, depth: 0.46, sizeScale: 1, haloScale: 0.2, dim: 0.8, parallax: 1 },
+    { count: mobile ? 320 : 520, radiusMin: 112, radiusMax: 176, magMin: -1.5, magMax: 1.9, depth: 0, sizeScale: 1.35, haloScale: 1, dim: 1, parallax: 1.16 },
   ];
 
-  const geometries = populations.map((spec) => fillPopulation(rand, spec.count, spec));
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
@@ -270,11 +304,16 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
     vertexColors: true,
   });
 
-  const points = geometries.map((geometry) => {
-    const cloud = new THREE.Points(geometry, material);
+  const points = [];
+  const shells = populations.map((spec) => {
+    const cloud = new THREE.Points(fillPopulation(rand, spec.count, spec), material);
     cloud.frustumCulled = false;
     cloud.renderOrder = -1;
-    return cloud;
+    points.push(cloud);
+    const shell = new THREE.Group();
+    shell.userData.parallax = spec.parallax;
+    shell.add(cloud);
+    return shell;
   });
 
   const galaxyMaterial = new THREE.ShaderMaterial({
@@ -287,23 +326,25 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
     blending: THREE.NormalBlending,
     side: THREE.BackSide,
   });
-  const galaxy = new THREE.Mesh(new THREE.SphereGeometry(340, 48, 32), galaxyMaterial);
+  const galaxy = new THREE.Mesh(new THREE.SphereGeometry(960, 48, 32), galaxyMaterial);
   galaxy.frustumCulled = false;
   galaxy.renderOrder = -2;
+  shells[0].add(galaxy);
 
-  // Polar axis sits in the upper sky, fixed to the camera's view. Spinning
-  // the rotor around it is the diurnal turn: stars wheel, they don't translate.
+  // Polar axis sits in the upper sky. Idle drift is one shared spin.
+  // Each shell then takes a different share of the date angle, so near
+  // stars slip against the far dust when the sky turns.
   const pole = new THREE.Vector3(-0.1, 0.34, -1).normalize();
   const sky = new THREE.Group();
   sky.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pole);
 
-  const rotor = new THREE.Group();
-  sky.add(rotor);
+  const drift = new THREE.Group();
+  sky.add(drift);
 
   const pose = new THREE.Group();
   pose.rotation.set(0.62, 0, 0.18);
-  rotor.add(pose);
-  pose.add(galaxy, ...points);
+  drift.add(pose);
+  shells.forEach((shell) => pose.add(shell));
 
   let mode = 'shader';
   let fallback = null;
@@ -314,18 +355,13 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   let animStart = 0;
   let animDur = 0;
 
-  function wrapAngle(angle) {
-    const tau = Math.PI * 2;
-    return angle - Math.floor(angle / tau) * tau;
-  }
-
   function sampleDate(now) {
     if (animDur <= 0) return dateAngle;
     const t = Math.min(1, (now - animStart) / animDur);
     const eased = t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
     const value = animFrom + (animTo - animFrom) * eased;
     if (t >= 1) {
-      dateAngle = wrapAngle(animTo);
+      dateAngle = animTo;
       animDur = 0;
       return dateAngle;
     }
@@ -367,31 +403,36 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
         fallback.opacity = 0.2 + 0.7 * value;
       }
     },
-    advance(deltaMs, now, { duration = 1760, turns = 3 } = {}) {
+    place(pose) {
+      dateAngle = pose;
+      animTo = pose;
+      animDur = 0;
+    },
+    advance(deltaMs, now, { duration = 1500, nights = 1, pose = 0 } = {}) {
       const days = deltaMs / 86400000;
       if (!Number.isFinite(days) || Math.abs(days) < 1 / 86400) return;
-      // Land on this date's sky: one diurnal step per civil day, capped so a
-      // long jump still has a single distinct pose. The approach whirls
-      // through the same several turns as the moon, then eases onto that pose.
-      const dayTurn = THREE.MathUtils.degToRad(108);
-      const cap = THREE.MathUtils.degToRad(132);
-      const dateDelta = Math.max(-cap, Math.min(cap, days * dayTurn));
       const sign = Math.sign(days) || 1;
       const from = sampleDate(now);
-      const whirl = reducedMotion || duration <= 0 ? 0 : sign * turns * Math.PI * 2;
+      const spinNights = reducedMotion || duration <= 0 ? 0 : nights;
+      const dest = starDestination(from, pose, sign, spinNights);
       animFrom = from;
-      animTo = from + whirl + dateDelta;
+      animTo = dest;
       animStart = now;
-      animDur = whirl === 0 ? 0 : duration;
-      if (animDur === 0) {
-        dateAngle = wrapAngle(from + dateDelta);
-        animTo = dateAngle;
+      if (spinNights === 0 || duration <= 0) {
+        dateAngle = dest;
+        animDur = 0;
+        return;
       }
+      animDur = duration;
     },
     update(now) {
       const seconds = now * 0.001;
       if (mode === 'shader') material.uniforms.uTime.value = seconds;
-      rotor.rotation.y = seconds * idleRate + sampleDate(now);
+      drift.rotation.y = seconds * idleRate;
+      const angle = sampleDate(now);
+      shells.forEach((shell) => {
+        shell.rotation.y = shell.userData.parallax * angle;
+      });
     },
   };
 }

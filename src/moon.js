@@ -149,30 +149,33 @@ void main() {
   vec3 albedo = vec3(0.0);
   if (uHasMap > 0.5) albedo = photo;
   else if (uFallback > 0.5) albedo = proceduralAlbedo(vUv);
-  albedo *= vec3(0.96, 0.97, 1.0);
+  // The color map is reflectance. Keep it neutral so highlands stay stone, not plastic blue.
+  albedo *= vec3(1.0, 0.985, 0.96);
 
   vec3 L = normalize(uLightDir);
-  // Shade with a partly smoothed normal so crater rims catch light without
-  // turning the terminator into a one-pixel knife.
-  vec3 Nsoft = normalize(mix(Ng, N, 0.62));
+  // A partly smoothed normal keeps crater rims in the light without a one-pixel knife.
+  vec3 Nsoft = normalize(mix(Ng, N, 0.55));
   float ndl = dot(Nsoft, L);
   float relief = dot(N, L) - ndl;
-  float sun = smoothstep(-0.36, 0.38, ndl);
-  float dayShade = clamp(1.0 + relief * 1.05, 0.5, 1.28);
+  // Short penumbra, then a softened cosine: brightest at the subsolar point,
+  // falling toward the terminator the way a sunlit sphere does.
+  float penumbra = smoothstep(-0.12, 0.22, ndl);
+  float body = pow(clamp(ndl, 0.0, 1.0), 0.62);
+  float sun = penumbra * (0.38 + 0.62 * body);
+  float dayShade = clamp(1.0 + relief * 0.7, 0.8, 1.14);
 
   float facing = clamp(dot(Ng, V), 0.0, 1.0);
-  float limb = pow(max(facing, 0.001), 0.48);
-  vec3 lightColor = vec3(0.84, 0.88, 0.95);
-  vec3 lit = albedo * lightColor * sun * dayShade * mix(0.7, 1.0, limb) * 1.24;
+  float limb = pow(max(facing, 0.001), 0.4);
+  vec3 lightColor = vec3(1.0, 0.965, 0.91);
+  vec3 lit = albedo * lightColor * sun * dayShade * mix(0.9, 1.0, limb) * 1.05;
 
-  // Earth sits on +Z in this frame. Its light is strongest at new moon,
-  // when the near side is night, and it follows the albedo and the bumps.
+  // Earth sits on +Z. Its fill is faint, blue, and strongest at new moon.
   vec3 earthDir = vec3(0.0, 0.0, 1.0);
-  float earthPhase = pow(clamp(0.5 * (1.0 - dot(L, earthDir)), 0.0, 1.0), 0.85);
-  float earthNd = clamp(dot(N, earthDir) * 0.82 + 0.18, 0.12, 1.0);
-  float earthFill = 0.04 + 0.105 * earthPhase;
-  vec3 earth = albedo * vec3(0.56, 0.65, 0.84) * earthNd * earthFill;
-  float night = 1.0 - smoothstep(0.04, 0.78, sun);
+  float earthPhase = pow(clamp(0.5 * (1.0 - dot(L, earthDir)), 0.0, 1.0), 0.9);
+  float earthNd = clamp(dot(N, earthDir) * 0.55 + 0.38, 0.38, 1.0);
+  float earthFill = 0.034 + 0.07 * earthPhase;
+  vec3 earth = albedo * vec3(0.46, 0.56, 0.78) * earthNd * earthFill;
+  float night = 1.0 - smoothstep(0.02, 0.58, sun);
   vec3 color = lit + earth * night;
   vec3 bg = vec3(0.0235, 0.0353, 0.0627);
   vec3 shown = mix(bg, color, clamp(uReveal, 0.0, 1.0));
@@ -199,6 +202,14 @@ function prepTexture(texture, renderer) {
 
 function easeInOutCubic(t) {
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
+}
+
+/** World light that spins with the mesh. `extra` is yaw past the nearside rest pose. */
+export function yawLockedLight(dir, extra, out) {
+  const c = Math.cos(extra);
+  const s = Math.sin(extra);
+  out.set(dir.x * c + dir.z * s, dir.y, -dir.x * s + dir.z * c);
+  return out;
 }
 
 function slerpDir(a, b, t) {
@@ -295,18 +306,42 @@ export function createMoon(renderer) {
   let lerpStart = 0;
   let lerping = false;
   let lerpMs = 680;
+  let lerpSettle = 'even';
   let spin = null;
 
+  function phaseEase(t) {
+    if (lerpSettle !== 'late') return easeInOutCubic(t);
+    const u = Math.min(1, Math.max(0, (t - 0.42) / 0.58));
+    return easeInOutCubic(u);
+  }
+
+  function paintLight() {
+    yawLockedLight(currentDir, mesh.rotation.y - BASE_YAW, uniforms.uLightDir.value);
+  }
+
   /**
-   * Spin the mesh about celestial north (+Y) through several whole turns,
-   * then settle exactly on the nearside. Lighting stays in world space,
-   * so the spin does not invent a phase.
+   * Move the mesh about celestial north, then stop on the nearside.
+   * `turns` is a few full revolutions for a long date jump.
+   * `sway` is a small there-and-back nod for a single day.
+   * The sun direction is rotated by the same yaw, so the terminator
+   * stays glued to the ball while it moves.
    */
-  function spinBy(turns, { duration = 1760, now = performance.now() } = {}) {
+  function spinBy(turns, { duration = 1760, now = performance.now(), sway = 0 } = {}) {
     const tau = Math.PI * 2;
-    if (!Number.isFinite(turns) || turns === 0 || duration <= 0) {
+    if (duration <= 0) {
       mesh.rotation.y = BASE_YAW;
       spin = null;
+      paintLight();
+      return;
+    }
+    if (sway) {
+      spin = { mode: 'sway', start: now, duration, from: mesh.rotation.y, sway };
+      return;
+    }
+    if (!Number.isFinite(turns) || turns === 0) {
+      mesh.rotation.y = BASE_YAW;
+      spin = null;
+      paintLight();
       return;
     }
     const from = mesh.rotation.y;
@@ -314,37 +349,39 @@ export function createMoon(renderer) {
     const cycles = Math.round((dest - BASE_YAW) / tau);
     dest = BASE_YAW + cycles * tau;
     if ((dest - from) * turns <= 0) dest += Math.sign(turns) * tau;
-    spin = { start: now, duration, from, to: dest };
+    spin = { mode: 'turns', start: now, duration, from, to: dest };
   }
 
-  function setSunDirection(dir, { immediate = false, duration = 680 } = {}) {
+  function setSunDirection(dir, { immediate = false, duration = 680, now = performance.now(), settle = 'even' } = {}) {
     const next = new THREE.Vector3(dir.x, dir.y, dir.z);
     if (next.lengthSq() < 1e-8) return;
     next.normalize();
-    if (immediate) {
+    if (immediate || duration <= 0) {
       currentDir.copy(next);
       fromDir.copy(next);
       toDir.copy(next);
       lerping = false;
-      uniforms.uLightDir.value.copy(currentDir);
+      paintLight();
       return;
     }
     fromDir.copy(currentDir);
     toDir.copy(next);
-    lerpStart = performance.now();
+    lerpStart = now;
     lerpMs = duration;
-    lerping = duration > 0;
-    if (!lerping) {
-      currentDir.copy(next);
-      uniforms.uLightDir.value.copy(currentDir);
-    }
+    lerpSettle = settle === 'late' ? 'late' : 'even';
+    lerping = true;
   }
 
   function update(now, reveal) {
     if (spin) {
       const t = Math.min(1, (now - spin.start) / spin.duration);
-      const eased = easeInOutCubic(t);
-      mesh.rotation.y = spin.from + (spin.to - spin.from) * eased;
+      if (spin.mode === 'sway') {
+        const residual = (spin.from - BASE_YAW) * (1 - t);
+        mesh.rotation.y = BASE_YAW + residual + spin.sway * Math.sin(Math.PI * t);
+      } else {
+        const eased = easeInOutCubic(t);
+        mesh.rotation.y = spin.from + (spin.to - spin.from) * eased;
+      }
       if (t >= 1) {
         mesh.rotation.y = BASE_YAW;
         spin = null;
@@ -353,10 +390,10 @@ export function createMoon(renderer) {
 
     if (lerping) {
       const t = Math.min(1, (now - lerpStart) / lerpMs);
-      currentDir.copy(slerpDir(fromDir, toDir, easeInOutCubic(t)));
+      currentDir.copy(slerpDir(fromDir, toDir, phaseEase(t)));
       if (t >= 1) lerping = false;
     }
-    uniforms.uLightDir.value.copy(currentDir);
+    paintLight();
 
     if (!mapReady && !failed) {
       mesh.visible = false;

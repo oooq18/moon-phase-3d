@@ -4,42 +4,57 @@ export const SHANGHAI_TZ = 'Asia/Shanghai';
 
 const KM_PER_AU = 149597870.7;
 const DAY_MS = 86400000;
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
 
-const shanghaiFormat = new Intl.DateTimeFormat('en-US', {
-  timeZone: SHANGHAI_TZ,
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hourCycle: 'h23',
-});
-
+/**
+ * Civil parts in a fixed UTC+8. The IANA zone `Asia/Shanghai` is not a flat
+ * eight hours: before 1901 it is local mean time (+8:05:43), and some later
+ * years add daylight saving. Reading those offsets back through `Date.UTC`
+ * (which always subtracts eight hours) skips a civil day. The observatory
+ * keeps the stated UTC+8 for the whole picker range.
+ */
 export function shanghaiParts(date) {
-  const map = {};
-  for (const part of shanghaiFormat.formatToParts(date)) {
-    if (part.type !== 'literal') map[part.type] = part.value;
-  }
-  let hour = Number(map.hour);
-  // Some engines report midnight as 24:00 on the new civil date.
-  if (hour === 24) hour = 0;
+  const shifted = new Date(date.getTime() + SHANGHAI_OFFSET_MS);
   return {
-    year: Number(map.year),
-    month: Number(map.month),
-    day: Number(map.day),
-    hour,
-    minute: Number(map.minute),
-    second: Number(map.second),
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    hour: shifted.getUTCHours(),
+    minute: shifted.getUTCMinutes(),
+    second: shifted.getUTCSeconds(),
   };
+}
+
+/** Whole Shanghai civil days since the Unix epoch. Stable sky-pose index. */
+export function shanghaiDayIndex(date) {
+  const p = shanghaiParts(date);
+  return Math.round(Date.UTC(p.year, p.month - 1, p.day) / 86400000);
 }
 
 const CIVIL_YMD = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
+ * Usable civil range for the native date control.
+ * iOS Safari draws year 999 on the wheel but will not commit it; 1000 is the
+ * first year that control can actually select, so the minimum is 1000-01-01.
+ * HTML dates are four-digit years (`YYYY-MM-DD`). Year 10000 needs a fifth
+ * digit and is not advertised. astronomy-engine’s lunar theory still returns
+ * a finite phase, an age inside one month, and a geocentric distance inside
+ * the real perigee–apogee band across this whole span.
+ */
+export const MIN_CIVIL_ISO = '1000-01-01';
+export const MAX_CIVIL_ISO = '9999-12-31';
+const MIN_CIVIL_KEY = 10000101;
+const MAX_CIVIL_KEY = 99991231;
+
+function civilKey(year, month, day) {
+  return year * 10000 + month * 100 + day;
+}
+
+/**
  * Parse a full four-digit civil date. Years 0–99 are not shifted into the
  * 1900s: `0001-10-26` is year 1, and it is rejected because `Date.UTC` would
- * otherwise turn it into 1901.
+ * otherwise turn it into 1901. A five-digit year such as 10000 does not match.
  */
 export function parseCivilYMD(iso) {
   const match = CIVIL_YMD.exec(String(iso ?? '').trim());
@@ -61,9 +76,32 @@ export function parseCivilYMD(iso) {
 
 export function formatISODateShanghai(date) {
   const p = shanghaiParts(date);
+  const year = String(p.year).padStart(4, '0');
   const month = String(p.month).padStart(2, '0');
   const day = String(p.day).padStart(2, '0');
-  return `${p.year}-${month}-${day}`;
+  return `${year}-${month}-${day}`;
+}
+
+/** True when `iso` is a real four-digit civil date inside the picker range. */
+export function isCivilIsoInRange(iso) {
+  const parts = parseCivilYMD(iso);
+  if (!parts) return false;
+  const key = civilKey(parts.year, parts.month, parts.day);
+  return key >= MIN_CIVIL_KEY && key <= MAX_CIVIL_KEY;
+}
+
+/** Keep the clock, but do not leave the civil range. */
+export function clampShanghaiDate(date) {
+  const p = shanghaiParts(date);
+  const key = civilKey(p.year, p.month, p.day);
+  if (key < MIN_CIVIL_KEY) return withShanghaiYMD(date, MIN_CIVIL_ISO);
+  if (key > MAX_CIVIL_KEY) return withShanghaiYMD(date, MAX_CIVIL_ISO);
+  return new Date(date.getTime());
+}
+
+/** Shift by whole civil days in Asia/Shanghai, then stop at the range ends. */
+export function stepShanghaiDays(date, days) {
+  return clampShanghaiDate(addShanghaiDays(date, days));
 }
 
 /** Civil month and day only, for the share image. No year, clock, or place. */

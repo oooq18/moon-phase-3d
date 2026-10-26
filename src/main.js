@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { computeLunar, formatISODateShanghai, formatShanghaiMonthDay } from './astronomy.js';
+import { computeLunar, formatISODateShanghai, formatShanghaiMonthDay, shanghaiDayIndex } from './astronomy.js';
 import { createMoon } from './moon.js';
 import { poemForPhase } from './poems.js';
-import { createStars } from './stars.js';
+import { createStars, diurnalNights, SKY_POSE_PER_DAY } from './stars.js';
 import { mountUI } from './ui.js';
 import './style.css';
 
@@ -18,7 +18,12 @@ let moonApi = null;
 let starsApi = null;
 let renderer = null;
 
-function applyDate(date, { live: nextLive, immediate, litMs }) {
+function skyPose(date) {
+  return shanghaiDayIndex(date) * SKY_POSE_PER_DAY;
+}
+
+function applyDate(date, { live: nextLive, immediate, litMs, settle = 'even', now, sky = 'auto' } = {}) {
+  const previous = currentDate;
   currentDate = date;
   live = nextLive;
   let info;
@@ -29,25 +34,52 @@ function applyDate(date, { live: nextLive, immediate, litMs }) {
     return;
   }
   ui.render(info, date);
+  if (sky !== 'handled' && starsApi && shanghaiDayIndex(date) !== shanghaiDayIndex(previous)) {
+    starsApi.place(skyPose(date));
+  }
   if (!moonApi) return;
   const duration = reduceMotion ? 0 : (litMs ?? 680);
   moonApi.setSunDirection(info.sunDirection, {
     immediate: Boolean(immediate) || duration === 0,
     duration,
+    now: now ?? performance.now(),
+    settle,
   });
 }
 
-const STEP_TURNS = 3;
-const STEP_MS = 1760;
+const LARGE_DAY = 1.5;
+const LARGE_MS = 1760;
+const GENTLE_MS = 1500;
+const MOON_TURNS = 3;
+const MOON_SWAY = 0.42;
 
 const ui = mountUI(document, new Date(), (date, { live: nextLive }) => {
   const previous = currentDate.getTime();
   const delta = date.getTime() - previous;
-  const step = !reduceMotion && Math.abs(delta) > 60000;
+  const absDays = Math.abs(delta) / 86400000;
+  const move = !reduceMotion && Math.abs(delta) > 60000;
+  const large = absDays >= LARGE_DAY;
   const now = performance.now();
-  applyDate(date, { live: nextLive, immediate: false, litMs: step ? 980 : 680 });
-  if (step && moonApi) moonApi.spinBy(delta > 0 ? STEP_TURNS : -STEP_TURNS, { duration: STEP_MS, now });
-  if (starsApi) starsApi.advance(delta, now, { duration: STEP_MS, turns: STEP_TURNS });
+  const motionMs = large ? LARGE_MS : GENTLE_MS;
+  applyDate(date, {
+    live: nextLive,
+    immediate: false,
+    litMs: move ? motionMs : 680,
+    settle: move && large ? 'late' : 'even',
+    now,
+    sky: 'handled',
+  });
+  if (move && moonApi) {
+    if (large) moonApi.spinBy(Math.sign(delta) * MOON_TURNS, { duration: motionMs, now });
+    else moonApi.spinBy(0, { duration: motionMs, now, sway: Math.sign(delta) * MOON_SWAY });
+  }
+  if (starsApi && Math.abs(delta) > 60000) {
+    starsApi.advance(delta, now, {
+      duration: move ? motionMs : 0,
+      nights: move ? diurnalNights(absDays) : 0,
+      pose: skyPose(date),
+    });
+  }
   if (nextLive) lastLiveSample = now;
 });
 
@@ -95,6 +127,7 @@ function boot(gl) {
   });
   stars.setPixelRatio(gl.getPixelRatio());
   starsApi = stars;
+  stars.place(skyPose(new Date()));
   scene.add(stars.object);
   scene.add(moon.anchor);
 
