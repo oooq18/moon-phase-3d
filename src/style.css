@@ -433,13 +433,14 @@ button[hidden] {
   }
 
   .control-extra {
-    display: none;
-  }
-
-  .control-extra:has(#today:not([hidden])) {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     min-height: 44px;
+  }
+
+  .control-extra:has(#today:not([hidden])) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
   }
 
   .date-field {
@@ -455,12 +456,17 @@ button[hidden] {
     font-size: 0.75rem;
   }
 
-  .control-extra > #today {
+  .control-extra > #today,
+  .control-extra > #share {
     box-shadow: none;
     width: 100%;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: var(--surface);
+  }
+
+  .cluster button:disabled {
+    opacity: 0.4;
   }
 }
 
@@ -540,11 +546,13 @@ button[hidden] {
     display: contents;
   }
 
-  .control-extra > #today {
+  .control-extra > #today,
+  .control-extra > #share {
     width: auto;
     border: 0;
     border-radius: 0;
     background: transparent;
+    box-shadow: inset 1px 0 0 var(--line);
   }
 
   .date-field {

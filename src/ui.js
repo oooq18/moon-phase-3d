@@ -17,6 +17,7 @@ export function mountUI(root, initialDate, onDate) {
   const prev = root.querySelector('#prev');
   const next = root.querySelector('#next');
   const today = root.querySelector('#today');
+  const share = root.querySelector('#share');
   const fallback = root.querySelector('#fallback');
 
   dateInput.min = '1900-01-01';
@@ -123,6 +124,12 @@ export function mountUI(root, initialDate, onDate) {
     render,
     setFallback(on) {
       fallback.hidden = !on;
+    },
+    bindShare(handler) {
+      share.addEventListener('click', () => handler(new Date(current.getTime())));
+    },
+    setShareEnabled(on) {
+      share.disabled = !on;
     },
   };
 }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { computeLunar } from './astronomy.js';
+import { computeLunar, formatISODateShanghai } from './astronomy.js';
 import { createMoon } from './moon.js';
 import { createStars } from './stars.js';
 import { mountUI } from './ui.js';
@@ -59,6 +59,7 @@ try {
 }
 
 if (!renderer) {
+  ui.setShareEnabled(false);
   applyDate(currentDate, { live: true, immediate: true });
 } else {
   boot(renderer);
@@ -194,8 +195,82 @@ function boot(gl) {
     gl.render(scene, camera);
   }
 
+  ui.bindShare((date) => shareView(gl, scene, camera, date));
+
   requestAnimationFrame(tick);
 
+}
+
+function paintSharePlate(ctx, width, height, name) {
+  const vignette = ctx.createRadialGradient(
+    width * 0.5,
+    height * 0.42,
+    Math.min(width, height) * 0.2,
+    width * 0.5,
+    height * 0.42,
+    Math.max(width, height) * 0.72,
+  );
+  vignette.addColorStop(0, 'rgba(5, 7, 13, 0)');
+  vignette.addColorStop(1, 'rgba(5, 7, 13, 0.42)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, width, height);
+  if (!name || name === '—' || name === '无法计算') return;
+  const size = Math.max(28, Math.round(Math.min(width, height) * 0.052));
+  ctx.font = `400 ${size}px "Iowan Old Style", Palatino, "Songti SC", "Noto Serif CJK SC", "Noto Sans CJK SC", serif`;
+  ctx.fillStyle = 'rgba(236, 240, 246, 0.92)';
+  ctx.textBaseline = 'alphabetic';
+  ctx.shadowColor = 'rgba(5, 7, 13, 0.72)';
+  ctx.shadowBlur = size * 0.4;
+  const tracking = size * 0.14;
+  let x = Math.round(width * 0.06);
+  const y = height - Math.round(height * 0.07);
+  for (const glyph of name) {
+    ctx.fillText(glyph, x, y);
+    x += ctx.measureText(glyph).width + tracking;
+  }
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+async function shareView(gl, scene, camera, date) {
+  const button = document.querySelector('#share');
+  if (button) button.disabled = true;
+  try {
+    // Copy in this turn. Without preserveDrawingBuffer the canvas is cleared
+    // after the browser composites, so a later toBlob would be blank.
+    gl.render(scene, camera);
+    const source = gl.domElement;
+    const plate = document.createElement('canvas');
+    plate.width = source.width;
+    plate.height = source.height;
+    const ctx = plate.getContext('2d');
+    ctx.drawImage(source, 0, 0);
+    const phase = document.querySelector('#phase-name').textContent.trim();
+    paintSharePlate(ctx, plate.width, plate.height, phase);
+    const blob = await new Promise((resolve) => plate.toBlob(resolve, 'image/png'));
+    if (!blob) return;
+    const filename = `moon-${formatISODateShanghai(date)}.png`;
+    const file = new File([blob], filename, { type: 'image/png' });
+    const payload = { files: [file], title: phase ? `观月 · ${phase}` : '观月' };
+    if (typeof navigator.canShare === 'function' && navigator.canShare(payload)) {
+      try {
+        await navigator.share(payload);
+        return;
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+      }
+    }
+    downloadBlob(blob, filename);
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function mountGrain() {
