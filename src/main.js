@@ -535,7 +535,8 @@ function measureTracked(ctx, text, tracking) {
   return width;
 }
 
-function verseLines(ctx, text, maxWidth, tracking) {
+function clauseLines(ctx, text, maxWidth, tracking) {
+  if (!text) return [];
   const clauses = text.split(/(?<=[，。；])/u).map((part) => part.trim()).filter(Boolean);
   if (clauses.length > 1 && clauses.every((clause) => measureTracked(ctx, clause, tracking) <= maxWidth)) {
     return clauses;
@@ -544,14 +545,95 @@ function verseLines(ctx, text, maxWidth, tracking) {
   return wrapGlyphs(ctx, text, maxWidth, tracking);
 }
 
+function fittedLines(ctx, text, maxWidth, tracking) {
+  if (!text) return [];
+  if (measureTracked(ctx, text, tracking) <= maxWidth) return [text];
+  return wrapGlyphs(ctx, text, maxWidth, tracking);
+}
+
 function paintCentered(ctx, text, centerX, baseline, tracking) {
   paintTracked(ctx, text, centerX - measureTracked(ctx, text, tracking) / 2, baseline, tracking);
 }
 
+function dualType(px) {
+  return {
+    phaseSize: Math.max(64, Math.round(px * 0.17)),
+    nameSize: Math.max(36, Math.round(px * 0.084)),
+    dateSize: Math.max(34, Math.round(px * 0.078)),
+    poemSize: Math.max(36, Math.round(px * 0.092)),
+    authorSize: Math.max(28, Math.round(px * 0.058)),
+  };
+}
+
 /**
- * One caption column under each moon. Both columns share a top so the
- * phase names line up, and each column is centered on its moon without
- * crossing the gutter. Couplets break at the comma when both halves fit.
+ * Both columns share one vertical grid. A couplet always breaks at
+ * ，。； when each half fits, and the poem block reserves at least two
+ * lines so a shorter verse leaves a blank slot instead of pulling the
+ * author up. The name row is kept on both sides when either person has one.
+ */
+function buildDualLayout(ctx, columns, px) {
+  const type = dualType(px);
+  const nameTracking = type.nameSize * 0.12;
+  const poemTracking = type.poemSize * 0.06;
+  const prepared = columns.map((column) => {
+    const phase = column.caption.phase;
+    const showPhase = Boolean(phase && phase !== '—' && phase !== '无法计算');
+    ctx.font = `400 ${type.nameSize}px ${SHARE_SANS}`;
+    const nameLines = fittedLines(ctx, column.caption.name, column.maxWidth, nameTracking);
+    ctx.font = `400 ${type.poemSize}px ${SHARE_SERIF}`;
+    const poemLines = clauseLines(ctx, column.caption.poem?.text || '', column.maxWidth, poemTracking);
+    return {
+      ...column,
+      showPhase,
+      phase: showPhase ? phase : '',
+      nameLines,
+      dateLabel: column.caption.dateLabel || '',
+      poemLines,
+      author: column.caption.poem?.author || '',
+    };
+  });
+
+  const nameSlots = prepared.some((column) => column.nameLines.length)
+    ? Math.max(1, ...prepared.map((column) => column.nameLines.length))
+    : 0;
+  const hasPoem = prepared.some((column) => column.poemLines.length);
+  const poemSlots = hasPoem
+    ? Math.max(2, ...prepared.map((column) => column.poemLines.length))
+    : 0;
+
+  const rows = [];
+  let cursor = 0;
+  const add = (key, size, step) => {
+    rows.push({ key, size, baseline: cursor });
+    cursor += step;
+  };
+
+  if (prepared.some((column) => column.showPhase)) {
+    add('phase', type.phaseSize, Math.round(type.phaseSize * 1.18));
+  }
+  for (let i = 0; i < nameSlots; i += 1) {
+    const last = i === nameSlots - 1;
+    add(`name:${i}`, type.nameSize, Math.round(type.nameSize * (last ? 1.55 : 1.38)));
+  }
+  add('date', type.dateSize, Math.round(type.dateSize * (hasPoem ? 1.28 : 1.2)));
+  if (hasPoem) {
+    add('rule', type.poemSize, Math.round(type.poemSize * 1.28));
+    for (let i = 0; i < poemSlots; i += 1) {
+      const last = i === poemSlots - 1;
+      add(`poem:${i}`, type.poemSize, Math.round(type.poemSize * (last ? 1.35 : 1.42)));
+    }
+    add('author', type.authorSize, Math.round(type.authorSize * 1.2));
+  }
+
+  const ascent = rows.length ? rows[0].size * 0.86 : 0;
+  const last = rows[rows.length - 1];
+  const height = last ? ascent + last.baseline + Math.round(last.size * 0.28) : 0;
+  return { rows, prepared, type, height, ascent };
+}
+
+/**
+ * One caption under each moon, on a shared baseline grid, centered on
+ * that moon and kept out of the gutter.
  */
 function paintDualPlates(ctx, width, height, layout, captions) {
   const moonBottom = layout.centers[0].y + layout.targetPx * 0.5;
@@ -581,105 +663,68 @@ function paintDualPlates(ctx, width, height, layout, captions) {
   const regionBottom = height - edge;
 
   let scale = 1;
-  let built = [];
+  let built = null;
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const px = layout.targetPx * scale;
-    built = columns.map((column) => buildDualColumn(ctx, column, px));
-    const blockH = Math.max(...built.map((column) => column.height), 0);
-    if (blockH <= regionBottom - regionTop || scale <= 0.74) break;
+    built = buildDualLayout(ctx, columns, layout.targetPx * scale);
+    if (built.height <= regionBottom - regionTop || scale <= 0.74) break;
     scale *= 0.9;
   }
 
-  const blockH = Math.max(...built.map((column) => column.height), 0);
-  const room = Math.max(0, regionBottom - regionTop - blockH);
+  const room = Math.max(0, regionBottom - regionTop - built.height);
   const top = regionTop + room / 2;
+  const { type } = built;
 
-  built.forEach((column) => {
-    let baseline = top + column.lines[0].ascent;
-    for (const line of column.lines) {
+  built.prepared.forEach((column) => {
+    for (const row of built.rows) {
+      const baseline = top + built.ascent + row.baseline;
       ctx.save();
       ctx.textBaseline = 'alphabetic';
       ctx.textAlign = 'left';
       ctx.shadowColor = 'rgba(0, 0, 0, 0.78)';
-      ctx.shadowBlur = line.size * 0.4;
-      if (line.kind === 'rule') {
-        const ruleW = line.ruleW;
-        ctx.fillStyle = line.color;
+      ctx.shadowBlur = row.size * 0.4;
+      if (row.key === 'rule') {
+        const ruleW = Math.round(type.poemSize * 3.4);
+        const thick = Math.max(8, Math.round(type.poemSize * 0.09));
         ctx.shadowBlur = 0;
-        ctx.fillRect(column.centerX - ruleW / 2, baseline - line.thick / 2, ruleW, line.thick);
+        ctx.fillStyle = 'rgba(236, 240, 246, 0.42)';
+        ctx.fillRect(column.centerX - ruleW / 2, baseline - thick / 2, ruleW, thick);
       } else {
-        ctx.font = `400 ${line.size}px ${line.font}`;
-        ctx.fillStyle = line.color;
-        paintCentered(ctx, line.text, column.centerX, baseline, line.tracking);
+        let text = '';
+        let font = SHARE_SANS;
+        let color = 'rgba(236, 240, 246, 0.9)';
+        let tracking = row.size * 0.12;
+        if (row.key === 'phase') {
+          text = column.phase;
+          font = SHARE_SERIF;
+          color = 'rgba(236, 240, 246, 0.96)';
+          tracking = type.phaseSize * 0.18;
+        } else if (row.key.startsWith('name:')) {
+          text = column.nameLines[Number(row.key.slice(5))] || '';
+          color = 'rgba(236, 240, 246, 0.92)';
+          tracking = type.nameSize * 0.12;
+        } else if (row.key === 'date') {
+          text = column.dateLabel;
+          color = 'rgba(236, 240, 246, 0.84)';
+          tracking = type.dateSize * 0.12;
+        } else if (row.key.startsWith('poem:')) {
+          text = column.poemLines[Number(row.key.slice(5))] || '';
+          font = SHARE_SERIF;
+          color = 'rgba(236, 240, 246, 0.92)';
+          tracking = type.poemSize * 0.06;
+        } else if (row.key === 'author') {
+          text = column.author;
+          color = 'rgba(236, 240, 246, 0.68)';
+          tracking = type.authorSize * 0.22;
+        }
+        if (text) {
+          ctx.font = `400 ${row.size}px ${font}`;
+          ctx.fillStyle = color;
+          paintCentered(ctx, text, column.centerX, baseline, tracking);
+        }
       }
       ctx.restore();
-      baseline += line.advance;
     }
   });
-}
-
-function buildDualColumn(ctx, column, px) {
-  const phaseSize = Math.max(64, Math.round(px * 0.17));
-  const nameSize = Math.max(36, Math.round(px * 0.084));
-  const dateSize = Math.max(34, Math.round(px * 0.078));
-  const poemSize = Math.max(36, Math.round(px * 0.092));
-  const authorSize = Math.max(28, Math.round(px * 0.058));
-  const caption = column.caption;
-  const phase = caption.phase;
-  const showPhase = phase && phase !== '—' && phase !== '无法计算';
-  const lines = [];
-
-  const addText = (text, size, font, color, tracking, advance) => {
-    ctx.font = `400 ${size}px ${font}`;
-    const parts = verseLines(ctx, text, column.maxWidth, tracking);
-    parts.forEach((part, index) => {
-      const last = index === parts.length - 1;
-      lines.push({
-        kind: 'text',
-        text: part,
-        size,
-        font,
-        color,
-        tracking,
-        ascent: size * 0.86,
-        advance: last ? advance : Math.round(size * 1.38),
-      });
-    });
-  };
-
-  if (showPhase) {
-    addText(phase, phaseSize, SHARE_SERIF, 'rgba(236, 240, 246, 0.96)', phaseSize * 0.18, Math.round(phaseSize * 1.18));
-  }
-  if (caption.name) {
-    addText(caption.name, nameSize, SHARE_SANS, 'rgba(236, 240, 246, 0.92)', nameSize * 0.12, Math.round(nameSize * 1.55));
-  }
-  if (caption.dateLabel) {
-    addText(caption.dateLabel, dateSize, SHARE_SANS, 'rgba(236, 240, 246, 0.84)', dateSize * 0.12, Math.round(dateSize * 1.28));
-  }
-  if (caption.poem?.text) {
-    lines.push({
-      kind: 'rule',
-      size: poemSize,
-      thick: Math.max(8, Math.round(poemSize * 0.09)),
-      ruleW: Math.round(poemSize * 3.4),
-      color: 'rgba(236, 240, 246, 0.42)',
-      ascent: poemSize * 0.45,
-      advance: Math.round(poemSize * 1.28),
-    });
-    addText(caption.poem.text, poemSize, SHARE_SERIF, 'rgba(236, 240, 246, 0.92)', poemSize * 0.06, Math.round(poemSize * 1.45));
-    if (caption.poem.author) {
-      const last = lines[lines.length - 1];
-      last.advance = Math.round(poemSize * 1.35);
-      addText(caption.poem.author, authorSize, SHARE_SANS, 'rgba(236, 240, 246, 0.68)', authorSize * 0.22, Math.round(authorSize * 1.2));
-    }
-  }
-
-  if (!lines.length) return { ...column, lines: [{ kind: 'text', text: '', size: 1, font: SHARE_SANS, color: 'transparent', tracking: 0, ascent: 0, advance: 0 }], height: 0 };
-
-  let height = lines[0].ascent;
-  for (let i = 0; i < lines.length - 1; i += 1) height += lines[i].advance;
-  height += Math.round(lines[lines.length - 1].size * 0.28);
-  return { ...column, lines, height };
 }
 
 async function shareView(gl, scene, camera, stars, frameShare, frameDualShare) {
