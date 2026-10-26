@@ -295,7 +295,7 @@ export function createMoon(renderer) {
    * then settle exactly on the nearside. Lighting stays in world space,
    * so the spin does not invent a phase.
    */
-  function spinBy(turns, { duration = 1760 } = {}) {
+  function spinBy(turns, { duration = 1760, now = performance.now() } = {}) {
     const tau = Math.PI * 2;
     if (!Number.isFinite(turns) || turns === 0 || duration <= 0) {
       mesh.rotation.y = BASE_YAW;
@@ -307,7 +307,7 @@ export function createMoon(renderer) {
     const cycles = Math.round((dest - BASE_YAW) / tau);
     dest = BASE_YAW + cycles * tau;
     if ((dest - from) * turns <= 0) dest += Math.sign(turns) * tau;
-    spin = { start: performance.now(), duration, from, to: dest };
+    spin = { start: now, duration, from, to: dest };
   }
 
   function setSunDirection(dir, { immediate = false, duration = 680 } = {}) {

@@ -314,13 +314,18 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   let animStart = 0;
   let animDur = 0;
 
+  function wrapAngle(angle) {
+    const tau = Math.PI * 2;
+    return angle - Math.floor(angle / tau) * tau;
+  }
+
   function sampleDate(now) {
     if (animDur <= 0) return dateAngle;
     const t = Math.min(1, (now - animStart) / animDur);
     const eased = t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
     const value = animFrom + (animTo - animFrom) * eased;
     if (t >= 1) {
-      dateAngle = animTo;
+      dateAngle = wrapAngle(animTo);
       animDur = 0;
       return dateAngle;
     }
@@ -362,22 +367,25 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
         fallback.opacity = 0.2 + 0.7 * value;
       }
     },
-    advance(deltaMs, now) {
+    advance(deltaMs, now, { duration = 1760, turns = 3 } = {}) {
       const days = deltaMs / 86400000;
       if (!Number.isFinite(days) || Math.abs(days) < 1 / 86400) return;
-      // One civil day is one readable turn of the sphere around the pole.
-      // A long jump stays inside a single wheel so the dome never whirls.
+      // Land on this date's sky: one diurnal step per civil day, capped so a
+      // long jump still has a single distinct pose. The approach whirls
+      // through the same several turns as the moon, then eases onto that pose.
       const dayTurn = THREE.MathUtils.degToRad(108);
       const cap = THREE.MathUtils.degToRad(132);
-      const delta = Math.max(-cap, Math.min(cap, days * dayTurn));
+      const dateDelta = Math.max(-cap, Math.min(cap, days * dayTurn));
+      const sign = Math.sign(days) || 1;
       const from = sampleDate(now);
+      const whirl = reducedMotion || duration <= 0 ? 0 : sign * turns * Math.PI * 2;
       animFrom = from;
-      animTo = from + delta;
+      animTo = from + whirl + dateDelta;
       animStart = now;
-      animDur = reducedMotion ? 0 : Math.min(1200, Math.max(760, (Math.abs(delta) / dayTurn) * 1080));
+      animDur = whirl === 0 ? 0 : duration;
       if (animDur === 0) {
-        dateAngle = animTo;
-        return;
+        dateAngle = wrapAngle(from + dateDelta);
+        animTo = dateAngle;
       }
     },
     update(now) {

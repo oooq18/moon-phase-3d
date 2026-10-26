@@ -37,14 +37,18 @@ function applyDate(date, { live: nextLive, immediate, litMs }) {
   });
 }
 
+const STEP_TURNS = 3;
+const STEP_MS = 1760;
+
 const ui = mountUI(document, new Date(), (date, { live: nextLive }) => {
   const previous = currentDate.getTime();
   const delta = date.getTime() - previous;
   const step = !reduceMotion && Math.abs(delta) > 60000;
+  const now = performance.now();
   applyDate(date, { live: nextLive, immediate: false, litMs: step ? 980 : 680 });
-  if (step && moonApi) moonApi.spinBy(delta > 0 ? 3 : -3, { duration: 1760 });
-  if (starsApi) starsApi.advance(delta, performance.now());
-  if (nextLive) lastLiveSample = performance.now();
+  if (step && moonApi) moonApi.spinBy(delta > 0 ? STEP_TURNS : -STEP_TURNS, { duration: STEP_MS, now });
+  if (starsApi) starsApi.advance(delta, now, { duration: STEP_MS, turns: STEP_TURNS });
+  if (nextLive) lastLiveSample = now;
 });
 
 function showWebGLError() {
