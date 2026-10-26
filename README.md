@@ -30,7 +30,7 @@ npm run preview  # serves dist/ at the same base path and port
 
 `Illumination` supplies `phase_angle`, `phase_fraction`, and `geo_dist` (AU → km with 149,597,870.7). `MoonPhase` is the 0–360° geocentric ecliptic phase (0 new, 90 first quarter, 180 full, 270 last quarter) used for the Chinese name and, with `SearchMoonPhase(0)`, for age since the previous new moon. `Elongation` is read as a cross-check (`evening` is waxing, `morning` is waning).
 
-The light vector is not a hard-coded phase angle. It is the Sun’s direction in an Earth-view basis built from the library vectors `gc` (Earth→Moon) and `hc` (Sun→Moon): +Z toward Earth, +Y celestial north, +X west / screen-right.
+The light vector is not a hard-coded phase angle. It is the Sun’s direction in an Earth-view basis built from the library vectors `gc` (Earth→Moon) and `hc` (Sun→Moon): +Z toward Earth, +Y celestial north, +X west / screen-right. The terminator is a short penumbra, and the night side keeps a dim earthshine so the maria and highlands stay faintly visible.
 
 ## NASA assets
 

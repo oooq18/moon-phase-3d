@@ -152,21 +152,28 @@ void main() {
   albedo *= vec3(0.96, 0.97, 1.0);
 
   vec3 L = normalize(uLightDir);
-  float ndl = dot(N, L);
-  float wrap = 0.14;
-  float diff = clamp((ndl + wrap) / (1.0 + wrap), 0.0, 1.0);
-  diff = pow(diff, 1.08);
+  // Shade with a partly smoothed normal so crater rims catch light without
+  // turning the terminator into a one-pixel knife.
+  vec3 Nsoft = normalize(mix(Ng, N, 0.62));
+  float ndl = dot(Nsoft, L);
+  float relief = dot(N, L) - ndl;
+  float sun = smoothstep(-0.36, 0.38, ndl);
+  float dayShade = clamp(1.0 + relief * 1.05, 0.5, 1.28);
 
-  float facing = clamp(dot(N, V), 0.0, 1.0);
-  float limb = pow(facing, 0.42);
+  float facing = clamp(dot(Ng, V), 0.0, 1.0);
+  float limb = pow(max(facing, 0.001), 0.48);
   vec3 lightColor = vec3(0.84, 0.88, 0.95);
-  vec3 lit = albedo * lightColor * diff * mix(0.62, 1.0, limb) * 1.28;
+  vec3 lit = albedo * lightColor * sun * dayShade * mix(0.7, 1.0, limb) * 1.24;
 
-  float night = 1.0 - smoothstep(0.0, 0.42, diff);
-  float earthAmp = 0.018 + 0.05 * clamp(-uLightDir.z, 0.0, 1.0);
-  vec3 earth = albedo * vec3(0.50, 0.60, 0.78) * night * facing * earthAmp;
-
-  vec3 color = lit + earth;
+  // Earth sits on +Z in this frame. Its light is strongest at new moon,
+  // when the near side is night, and it follows the albedo and the bumps.
+  vec3 earthDir = vec3(0.0, 0.0, 1.0);
+  float earthPhase = pow(clamp(0.5 * (1.0 - dot(L, earthDir)), 0.0, 1.0), 0.85);
+  float earthNd = clamp(dot(N, earthDir) * 0.82 + 0.18, 0.12, 1.0);
+  float earthFill = 0.04 + 0.105 * earthPhase;
+  vec3 earth = albedo * vec3(0.56, 0.65, 0.84) * earthNd * earthFill;
+  float night = 1.0 - smoothstep(0.04, 0.78, sun);
+  vec3 color = lit + earth * night;
   vec3 bg = vec3(0.0235, 0.0353, 0.0627);
   vec3 shown = mix(bg, color, clamp(uReveal, 0.0, 1.0));
   gl_FragColor = linearToOutputTexel(vec4(shown, 1.0));
