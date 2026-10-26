@@ -48,7 +48,7 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  background: radial-gradient(ellipse at 50% 42%, transparent 54%, rgba(5, 7, 13, 0.18) 78%, rgba(5, 7, 13, 0.55) 100%);
+  background: radial-gradient(ellipse at 50% 42%, transparent 58%, rgba(5, 8, 16, 0.08) 80%, rgba(5, 8, 16, 0.32) 100%);
 }
 
 .grain {

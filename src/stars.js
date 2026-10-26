@@ -146,7 +146,7 @@ void main() {
   vColor = color * uFade * falloff;
   float atten = clamp(pow(200.0 / dist, 0.92), 0.36, 2.7);
   float layer = mix(1.24, 0.74, clamp(aDepth, 0.0, 1.0));
-  gl_PointSize = clamp(aSize * atten * layer * uPixelRatio * flick, 0.45, 12.0 * uPixelRatio);
+  gl_PointSize = clamp(aSize * atten * layer * uPixelRatio * flick, 1.15 * uPixelRatio, 12.0 * uPixelRatio);
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -183,6 +183,7 @@ void main() {
 const galaxyFragment = /* glsl */ `
 varying vec3 vDir;
 uniform float uFade;
+uniform float uPixelAngle;
 
 float hash(vec3 p) {
   p = fract(p * 0.1031);
@@ -209,22 +210,61 @@ float noise(vec3 p) {
   );
 }
 
+float starLayer(vec3 dir, float scale, float cutoff) {
+  vec3 p = dir * scale;
+  vec3 id = floor(p);
+  vec3 f = fract(p);
+  float n = hash(id);
+  float present = step(cutoff, n);
+  vec3 j = mix(
+    vec3(0.5),
+    vec3(hash(id + 1.3), hash(id + 4.7), hash(id + 9.2)),
+    0.7
+  );
+  // uPixelAngle is the frame's angular pixel at a 1500px reference height,
+  // so stars keep the same size in the picture when the share buffer is 4K.
+  float px = max(scale * uPixelAngle, 1e-4);
+  float mag = pow(hash(id + 2.2), 2.4);
+  float radius = px * mix(1.55, 3.4, mag);
+  float d2 = dot(f - j, f - j);
+  float core = exp(-d2 / (radius * radius * 0.9));
+  float gain = mix(0.42, 1.25, mag);
+  return present * core * gain;
+}
+
 void main() {
   vec3 dir = normalize(vDir);
   float lat = dir.x * 0.22 + dir.y * 0.91 + dir.z * 0.18;
-  float ribbon = exp(-lat * lat * 46.0);
-  float shoulder = exp(-lat * lat * 12.0);
-  float clumps = noise(dir * 3.2);
-  float fine = noise(dir * 8.2 + 3.0);
-  float grain = noise(dir * 15.0 + 1.7);
-  float clouds = smoothstep(0.18, 0.8, clumps);
-  float dust = smoothstep(0.7, 0.24, fine);
-  float knots = smoothstep(0.58, 0.9, grain);
-  float band = ribbon * 0.85 + shoulder * 0.32;
-  float alpha = band * clouds * (0.2 + 0.8 * dust) * (0.045 + 0.04 * knots) * uFade;
-  vec3 cool = vec3(0.42, 0.52, 0.76);
-  vec3 warm = vec3(0.78, 0.66, 0.5);
-  vec3 col = mix(cool, warm, clamp(ribbon * (0.3 + 0.7 * dust), 0.0, 1.0));
+  float broad = noise(dir * 1.15 + 1.7);
+  float mid = noise(dir * 2.6 + 6.0);
+  float fine = noise(dir * 6.4 + 3.0);
+  float cloud = smoothstep(0.22, 0.86, broad * 0.72 + mid * 0.28);
+  float wisp = smoothstep(0.45, 0.92, mid);
+  float haze = (0.045 + 0.07 * cloud + 0.018 * wisp) * uFade;
+  vec3 hazeCol = mix(vec3(0.035, 0.07, 0.15), vec3(0.16, 0.26, 0.46), cloud);
+
+  float ribbon = exp(-lat * lat * 22.0);
+  float shoulder = exp(-lat * lat * 6.5);
+  float lanes = smoothstep(0.18, 0.78, noise(dir * 3.1));
+  float dust = smoothstep(0.7, 0.22, fine);
+  float band = (ribbon * 0.5 + shoulder * 0.45) * lanes * (0.3 + 0.7 * dust);
+  float bandAlpha = band * 0.07 * uFade;
+  vec3 bandCol = mix(vec3(0.3, 0.42, 0.68), vec3(0.52, 0.56, 0.7), ribbon);
+
+  // Dense photographic dust. Three jittered shells so the field reaches
+  // every direction, not only the Milky Way, and most points stay faint.
+  float dustStars = starLayer(dir, 260.0, 0.48);
+  dustStars += starLayer(dir.yzx, 140.0, 0.8);
+  dustStars += starLayer(normalize(dir.zxy + dir * 0.17), 72.0, 0.92);
+  float spark = dustStars * uFade;
+  float warm = hash(floor(dir * 90.0) + 5.0);
+  vec3 starCol = mix(vec3(0.78, 0.86, 1.0), vec3(1.0, 0.9, 0.74), smoothstep(0.84, 0.98, warm));
+
+  float hazeAlpha = clamp(haze + bandAlpha, 0.0, 0.2);
+  vec3 hazeRgb = (hazeCol * haze + bandCol * bandAlpha) / max(hazeAlpha, 0.0001);
+  float starAlpha = clamp(spark, 0.0, 1.0);
+  float alpha = starAlpha + hazeAlpha * (1.0 - starAlpha);
+  vec3 col = (starCol * starAlpha + hazeRgb * hazeAlpha * (1.0 - starAlpha)) / max(alpha, 0.0001);
   gl_FragColor = vec4(col, alpha);
 }
 `;
@@ -344,9 +384,9 @@ function circleTexture() {
 export function createStars({ reducedMotion = false, mobile = false } = {}) {
   const rand = mulberry32(0x5f3759df);
   const populations = [
-    { count: mobile ? 12000 : 20000, radiusMin: 500, radiusMax: 820, magMin: 5.3, magMax: 7.3, depth: 1, sizeScale: 0.72, haloScale: 0, dim: 0.52, parallax: 0.84, plane: 0.58, spread: 0.13 },
-    { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 2.9, magMax: 5.6, depth: 0.48, sizeScale: 0.92, haloScale: 0.22, dim: 0.76, parallax: 1, plane: 0.2, spread: 0.22 },
-    { count: mobile ? 72 : 128, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.15, haloScale: 1, dim: 1, parallax: 1.16, plane: 0.06, spread: 0.3 },
+    { count: mobile ? 15000 : 26000, radiusMin: 500, radiusMax: 820, magMin: 5.1, magMax: 7.2, depth: 1, sizeScale: 0.78, haloScale: 0, dim: 0.92, parallax: 0.84, plane: 0.22, spread: 0.28 },
+    { count: mobile ? 4200 : 7400, radiusMin: 230, radiusMax: 390, magMin: 1.7, magMax: 5.3, depth: 0.46, sizeScale: 0.95, haloScale: 0.16, dim: 0.86, parallax: 1, plane: 0.16, spread: 0.24 },
+    { count: mobile ? 150 : 240, radiusMin: 118, radiusMax: 190, magMin: -1.46, magMax: 1.7, depth: 0, sizeScale: 1.12, haloScale: 1, dim: 1, parallax: 1.16, plane: 0.05, spread: 0.32 },
   ];
 
   const material = new THREE.ShaderMaterial({
@@ -378,7 +418,10 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   });
 
   const galaxyMaterial = new THREE.ShaderMaterial({
-    uniforms: { uFade: { value: 0 } },
+    uniforms: {
+      uFade: { value: 0 },
+      uPixelAngle: { value: 0.0007 },
+    },
     vertexShader: galaxyVertex,
     fragmentShader: galaxyFragment,
     transparent: true,
@@ -457,6 +500,9 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
     },
     setPixelRatio(value) {
       if (mode === 'shader') material.uniforms.uPixelRatio.value = value;
+    },
+    setPixelAngle(radians) {
+      if (mode === 'shader') galaxyMaterial.uniforms.uPixelAngle.value = Math.max(1e-5, radians);
     },
     setFade(value) {
       if (mode === 'shader') {

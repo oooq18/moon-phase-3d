@@ -20,6 +20,11 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 
 const SHARE_W = 2160;
 const SHARE_H = 3840;
+const DUAL_W = 2880;
+const DUAL_H = 3840;
+// Gap between the disks is one third of a diameter, so the centers sit 4/3 radii apart.
+const PAIR_SEP = 4 / 3;
+const PAIR_SPAN = 1 + PAIR_SEP;
 const LARGE_DAY = 1.5;
 const LARGE_MS = 1760;
 const GENTLE_MS = 1100;
@@ -178,7 +183,7 @@ function boot(gl) {
   gl.setSize(window.innerWidth, window.innerHeight, false);
   gl.outputColorSpace = THREE.SRGBColorSpace;
   gl.toneMapping = THREE.NoToneMapping;
-  gl.setClearColor(0x060910, 1);
+  gl.setClearColor(0x071422, 1);
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 2400);
@@ -208,7 +213,7 @@ function boot(gl) {
   const brand = document.querySelector('.brand');
 
   function placeMoons(pair, y) {
-    const sep = pair ? moon.radius * 1.52 : 0;
+    const sep = pair ? moon.radius * PAIR_SEP : 0;
     moons[0].anchor.visible = true;
     moons[1].anchor.visible = pair;
     moons[0].anchor.position.set(pair ? -sep : 0, y, 0);
@@ -239,7 +244,7 @@ function boot(gl) {
     const widthCap = widthBudget * (landscapeShort ? 0.92 : mobile ? 0.92 : pair ? 0.78 : 0.56);
     const heightCap = availH * (landscapeShort ? 0.92 : 0.86);
     const vhCap = vh * (landscapeShort ? 0.5 : mobile ? 0.58 : 0.52);
-    const span = pair ? 2.52 : 1;
+    const span = pair ? PAIR_SPAN : 1;
     const targetPx = Math.max(64, Math.min(widthCap / span, heightCap, vhCap));
     const vFov = THREE.MathUtils.degToRad(camera.fov);
     const tanHalf = Math.tan(vFov / 2);
@@ -257,6 +262,9 @@ function boot(gl) {
     gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     stars.setPixelRatio(gl.getPixelRatio());
     gl.setSize(vw, vh, false);
+    // Star dust is sized to the frame, not the framebuffer, so a 4K share
+    // keeps the same sky when it is scaled down to the screen.
+    stars.setPixelAngle((2 * tanHalf) / 1500);
   };
 
   function frameShare(index) {
@@ -277,6 +285,34 @@ function boot(gl) {
     camera.up.set(0, 1, 0);
     camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
+  }
+
+  function frameDualShare() {
+    moons[0].anchor.visible = true;
+    moons[1].anchor.visible = true;
+    camera.aspect = DUAL_W / DUAL_H;
+    const vFov = THREE.MathUtils.degToRad(camera.fov);
+    const tanHalf = Math.tan(vFov / 2);
+    const targetPx = DUAL_W * 0.3;
+    const fitDist = (moon.radius * DUAL_H) / (tanHalf * targetPx);
+    const freeCenter = DUAL_H * 0.4;
+    const y = fitDist * tanHalf * ((DUAL_H - 2 * freeCenter) / DUAL_H);
+    const sep = moon.radius * PAIR_SEP;
+    moons[0].anchor.position.set(-sep, y, 0);
+    moons[1].anchor.position.set(sep, y, 0);
+    stars.object.position.set(0, 0, 0);
+    camera.position.set(0, 0, fitDist);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+    const offsetX = (targetPx * 2) / 3;
+    return {
+      targetPx,
+      centers: [
+        { x: DUAL_W / 2 - offsetX, y: freeCenter },
+        { x: DUAL_W / 2 + offsetX, y: freeCenter },
+      ],
+    };
   }
 
   const introStart = performance.now();
@@ -343,7 +379,7 @@ function boot(gl) {
     gl.render(scene, camera);
   }
 
-  ui.bindShare(() => shareView(gl, scene, camera, stars, frameShare));
+  ui.bindShare(() => shareView(gl, scene, camera, stars, frameShare, frameDualShare));
 
   requestAnimationFrame(tick);
 }
@@ -494,41 +530,68 @@ function downloadBlob(blob, filename) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-async function shareView(gl, scene, camera, stars, frameShare) {
+function formatDotDate(date) {
+  return formatISODateShanghai(date).replaceAll('-', '.');
+}
+
+function paintDotDate(ctx, text, x, y, size) {
+  ctx.save();
+  ctx.font = `500 ${size}px ${SHARE_SANS}`;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(4, 8, 16, 0.6)';
+  ctx.shadowBlur = size * 0.4;
+  const tracking = size * 0.08;
+  let width = 0;
+  for (const glyph of text) width += ctx.measureText(glyph).width + tracking;
+  width -= tracking;
+  let cursor = x - width / 2;
+  for (const glyph of text) {
+    ctx.fillText(glyph, cursor, y);
+    cursor += ctx.measureText(glyph).width + tracking;
+  }
+  ctx.restore();
+}
+
+async function shareView(gl, scene, camera, stars, frameShare, frameDualShare) {
   const button = document.querySelector('#share');
   if (button) button.disabled = true;
   let resized = false;
   try {
     const dual = viewMode === 'dual';
+    const frameW = dual ? DUAL_W : SHARE_W;
+    const frameH = dual ? DUAL_H : SHARE_H;
     const plate = document.createElement('canvas');
-    plate.width = dual ? SHARE_W * 2 : SHARE_W;
-    plate.height = SHARE_H;
+    plate.width = frameW;
+    plate.height = frameH;
     const ctx = plate.getContext('2d');
     const source = gl.domElement;
-    stars.setPixelRatio(SHARE_H / Math.max(1, window.innerHeight));
+    stars.setPixelRatio(frameH / Math.max(1, window.innerHeight));
     gl.setPixelRatio(1);
-    gl.setSize(SHARE_W, SHARE_H, false);
+    gl.setSize(frameW, frameH, false);
+    const shareTan = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+    stars.setPixelAngle((2 * shareTan) / 1500);
     resized = true;
 
-    frameShare(0);
-    gl.render(scene, camera);
-    ctx.drawImage(source, 0, 0, SHARE_W, SHARE_H, 0, 0, SHARE_W, SHARE_H);
     if (dual) {
-      frameShare(1);
+      const layout = frameDualShare();
       gl.render(scene, camera);
-      ctx.drawImage(source, 0, 0, SHARE_W, SHARE_H, SHARE_W, 0, SHARE_W, SHARE_H);
+      ctx.drawImage(source, 0, 0, frameW, frameH, 0, 0, frameW, frameH);
+      const dateSize = Math.round(layout.targetPx * 0.115);
+      const dateY = layout.centers[0].y + layout.targetPx * 0.5 + layout.targetPx * 0.34;
+      paintDotDate(ctx, formatDotDate(people[0].date), layout.centers[0].x, dateY, dateSize);
+      paintDotDate(ctx, formatDotDate(people[1].date), layout.centers[1].x, dateY, dateSize);
+    } else {
+      frameShare(0);
+      gl.render(scene, camera);
+      ctx.drawImage(source, 0, 0, frameW, frameH, 0, 0, frameW, frameH);
+      paintSharePlate(ctx, SHARE_W, SHARE_H, captionFor(0), 0);
     }
 
     frameCamera();
     gl.render(scene, camera);
     resized = false;
-
-    paintSharePlate(ctx, SHARE_W, SHARE_H, captionFor(0), 0);
-    if (dual) {
-      paintSharePlate(ctx, SHARE_W, SHARE_H, captionFor(1), SHARE_W);
-      ctx.fillStyle = 'rgba(232, 236, 243, 0.22)';
-      ctx.fillRect(SHARE_W - 1, 0, 2, SHARE_H);
-    }
 
     const blob = await new Promise((resolve) => plate.toBlob(resolve, 'image/png'));
     if (!blob) return;

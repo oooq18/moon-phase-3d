@@ -25,7 +25,7 @@ npm run preview  # serves dist/ at the same base path and port
 - Pick a civil date, or step with 前一天 / 后一天 (also ← / →). The date control applies the full year, month, and day from `1000-01-01` through `9999-12-31`. Year 1000 is the first year iOS Safari will actually commit (year 999 can appear on the wheel and still not be selected). Year 10000 is not a four-digit `YYYY-MM-DD` value, so it is not offered. A year change is that year, not a remapped one. Day steps stay on ±1 civil day and stop at the two ends. The value is a Shanghai calendar day; the clock time stays with you. 今天 appears only when that civil date is not today, and returns to the current instant.
 - 单月 is one birthday: an optional name and that date’s moon. 双月 puts two birthdays side by side on the same sky. Each moon stays nearside-facing and is lit for its own date. 前一天 / 后一天 and the date control change the selected person; tap the other name to select them. The instrument shows that person’s phase, and in 双月 both names and dates stay visible.
 - On 农历八月十五 the verse comes from ten Mid-Autumn lines (苏轼、王建、辛弃疾) instead of the phase pools. Any other date keeps the phase line.
-- 分享 writes a 9:16 portrait at 2160×3840. 双月 writes two of those panels side by side, 4320×3840. The file is `moon-YYYY-MM-DD.png`, or `moon-YYYY-MM-DD_YYYY-MM-DD.png` for two people. It carries the phase, the name when one was typed, the civil date as 几月几日, and the same line and author. The browser share sheet is used when it can take a file.
+- 分享 in 单月 writes a 9:16 portrait at 2160×3840 (`moon-YYYY-MM-DD.png`) with the phase, the name when one was typed, the civil date as 几月几日, and the same line and author. 双月 writes one 3:4 portrait, 2880×3840 (`moon-YYYY-MM-DD_YYYY-MM-DD.png`): both moons on the same sky, with `YYYY.MM.DD` under each. The browser share sheet is used when it can take a file.
 - The camera is fixed: dragging does not orbit or zoom. The lunar ball does not spin when the date changes. Only the sunlight eases across the fixed nearside, and the sky turns. One day eases the sky through that one night’s turn and stops on the new pose, with no lap back. A long jump turns the sky through several nights (never more than four), then slows to a stop. The stellar drift pauses while the sky is moving, then resumes. Reduced motion skips the turns and sets the light and the sky directly.
 - If the local moon textures fail to load, a procedural cratered sphere keeps the same lighting. The page does not depend on a CDN for the moon.
 
@@ -37,7 +37,7 @@ The light vector is not a hard-coded phase angle. It is the Sun’s direction in
 
 中秋 is the Shanghai civil date of 农历八月十五: lunar months are numbered from the winter solstice, and a thirteenth month makes the first month without a 中气 a leap month. Leap eighth months are not the festival.
 
-The star field is three shells inside the polar frame. Most stars are faint; only a few are bright enough to show a cool or warm tint and a soft glow. A dense faint shell gathers toward the Milky Way, which is a narrow band with dust lanes on the far shell. Point size and brightness fall off with distance, and the shells slip against each other when the date turns.
+The star field is three shells inside the polar frame, with a soft blue haze and a wider Milky Way behind them. Most stars are faint; brighter ones keep a cool or warm tint and a small glow. Point size and brightness fall off with distance, and the shells slip against each other when the date turns. 双月 uses that one sky behind both moons.
 
 ## NASA assets
 
