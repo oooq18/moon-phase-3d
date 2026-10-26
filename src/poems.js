@@ -3,10 +3,9 @@
  * Couplets follow the received texts (毛诗, 全唐诗, 乐府, and the usual ci).
  *
  * Single mode draws from the ten lines whose first phase is that name.
- * Dual mode draws one shared line from the ordered pair 左相|右相
- * (8×8 = 64 pools, ten each). The same line may sit in several pools.
+ * Dual mode does not show a line.
  *
- * 中秋: if either date is 农历八月十五, use the ten festival lines.
+ * 中秋: on 农历八月十五 in single mode, use the ten festival lines.
  */
 
 export const PHASES = ['新月', '蛾眉月', '上弦月', '盈凸月', '满月', '亏凸月', '下弦月', '残月'];
