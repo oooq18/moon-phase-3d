@@ -14,6 +14,7 @@ let live = true;
 let currentDate = new Date();
 let lastLiveSample = performance.now();
 let moonApi = null;
+let starsApi = null;
 let renderer = null;
 
 function applyDate(date, { live: nextLive, immediate }) {
@@ -36,7 +37,9 @@ function applyDate(date, { live: nextLive, immediate }) {
 }
 
 const ui = mountUI(document, new Date(), (date, { live: nextLive }) => {
+  const previous = currentDate.getTime();
   applyDate(date, { live: nextLive, immediate: false });
+  if (starsApi) starsApi.advance(date.getTime() - previous, performance.now());
   if (nextLive) lastLiveSample = performance.now();
 });
 
@@ -82,6 +85,7 @@ function boot(gl) {
     mobile: window.matchMedia('(max-width: 720px), (pointer: coarse)').matches,
   });
   stars.setPixelRatio(gl.getPixelRatio());
+  starsApi = stars;
   scene.add(stars.object);
   scene.add(moon.anchor);
 
@@ -186,7 +190,7 @@ function boot(gl) {
     const reveal = 1 - (1 - intro) ** 3;
     moon.update(now, reveal);
     stars.setFade(Math.min(1, reveal * 1.4));
-    stars.update(now * 0.001);
+    stars.update(now);
     gl.render(scene, camera);
   }
 

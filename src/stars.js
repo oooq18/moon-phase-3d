@@ -299,6 +299,25 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
 
   let mode = 'shader';
   let fallback = null;
+  const idleRate = reducedMotion ? 0 : 0.0017;
+  let dateAngle = 0;
+  let animFrom = 0;
+  let animTo = 0;
+  let animStart = 0;
+  let animDur = 0;
+
+  function sampleDate(now) {
+    if (animDur <= 0) return dateAngle;
+    const t = Math.min(1, (now - animStart) / animDur);
+    const eased = 1 - (1 - t) ** 3;
+    const value = animFrom + (animTo - animFrom) * eased;
+    if (t >= 1) {
+      dateAngle = animTo;
+      animDur = 0;
+      return dateAngle;
+    }
+    return value;
+  }
 
   return {
     object: sky,
@@ -335,9 +354,28 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
         fallback.opacity = 0.2 + 0.7 * value;
       }
     },
-    update(elapsed) {
-      if (mode === 'shader') material.uniforms.uTime.value = elapsed;
-      if (!reducedMotion) sky.rotation.y = elapsed * 0.00145;
+    advance(deltaMs, now) {
+      const days = deltaMs / 86400000;
+      if (!Number.isFinite(days) || Math.abs(days) < 1 / 86400) return;
+      // One solar day shifts the stars by about a degree. Scale that so a
+      // single day is a clear arc, and cap a long jump so the sky never spins.
+      const dayTurn = THREE.MathUtils.degToRad(22);
+      const cap = THREE.MathUtils.degToRad(40);
+      const delta = Math.max(-cap, Math.min(cap, days * dayTurn));
+      const from = sampleDate(now);
+      animFrom = from;
+      animTo = from + delta;
+      animStart = now;
+      animDur = reducedMotion ? 0 : Math.min(780, Math.max(420, (Math.abs(delta) / dayTurn) * 700));
+      if (animDur === 0) {
+        dateAngle = animTo;
+        return;
+      }
+    },
+    update(now) {
+      const seconds = now * 0.001;
+      if (mode === 'shader') material.uniforms.uTime.value = seconds;
+      sky.rotation.y = seconds * idleRate + sampleDate(now);
     },
   };
 }
