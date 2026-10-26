@@ -1,0 +1,22 @@
+NASA CGI Moon Kit — SVS-4720
+https://svs.gsfc.nasa.gov/4720
+
+Color map
+  Source file: lroc_color_16bit_srgb_4k.tif (4096×2048, 16-bit sRGB)
+  Direct URL:  https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_16bit_srgb_4k.tif
+  In this repo: lroc_color.jpg (8-bit JPEG, quality 88, same resolution)
+  2025 LROC WAC color mosaic (643 / 566 / 415 nm), polar gaps filled from LOLA albedo.
+  Map centered on lunar longitude 0°. Aesthetic product, not a radiometric science file.
+
+Elevation / bump
+  Source file: ldem_16_uint.tif (5760×2880, uint16, half-meters relative to 1,727,400 m)
+  Direct URL:  https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_16_uint.tif
+  In this repo: ldem_bump.png (2048×1024, 8-bit grayscale)
+  Resampled with Lanczos and stretched between the 0.4 and 99.6 percentiles for shading.
+  Derived from the Lunar Orbiter Laser Altimeter (LOLA) elevation model.
+
+Credit
+  NASA / Goddard Space Flight Center Scientific Visualization Studio.
+  Lunar Reconnaissance Orbiter Camera (LROC), Arizona State University.
+  Lunar Orbiter Laser Altimeter (LOLA).
+  U.S. Government work, public domain. NASA does not endorse this project.
