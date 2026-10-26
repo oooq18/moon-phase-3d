@@ -434,56 +434,6 @@ function wrapGlyphs(ctx, text, maxWidth, tracking) {
   return lines.length ? lines : [''];
 }
 
-function shareStack(ctx, caption, width, height, poemScale) {
-  const minSide = Math.min(width, height);
-  const maxText = Math.round(width * 0.84);
-  const phaseSize = Math.max(64, Math.round(minSide * 0.052));
-  const nameSize = Math.max(40, Math.round(minSide * 0.03));
-  const dateSize = Math.max(36, Math.round(minSide * 0.026));
-  const poemSize = Math.max(28, Math.round(minSide * 0.028 * poemScale));
-  const titleSize = Math.max(22, Math.round(poemSize * 0.72));
-  const authorSize = Math.max(22, Math.round(minSide * 0.02 * Math.max(poemScale, 0.78)));
-  const phase = caption.phase;
-  const showPhase = phase && phase !== '—' && phase !== '无法计算';
-  const stack = [];
-  const push = (text, size, font, color, tracking, step) => {
-    if (!text) return;
-    stack.push({ text, size, font, color, tracking, step: step ?? Math.round(size * 1.48) });
-  };
-  if (caption.poem?.author) {
-    push(caption.poem.author, authorSize, SHARE_SANS, 'rgba(236, 240, 246, 0.7)', authorSize * 0.16);
-  }
-  const verse = caption.poem?.lines?.length
-    ? caption.poem.lines
-    : (caption.poem?.text ? caption.poem.text.split('\n') : []);
-  const tracking = poemSize * 0.04;
-  const wrapped = [];
-  ctx.font = `400 ${poemSize}px ${SHARE_SERIF}`;
-  for (const line of verse) wrapped.push(...verseLayout(ctx, line, maxText, tracking));
-  for (let i = wrapped.length - 1; i >= 0; i -= 1) {
-    push(wrapped[i], poemSize, SHARE_SERIF, 'rgba(236, 240, 246, 0.92)', tracking, Math.round(poemSize * 1.42));
-  }
-  if (caption.poem?.title && wrapped.length) {
-    ctx.font = `400 ${titleSize}px ${SHARE_SERIF}`;
-    const titleTracking = titleSize * 0.16;
-    const titleLines = fittedLines(ctx, caption.poem.title, maxText, titleTracking);
-    for (let i = titleLines.length - 1; i >= 0; i -= 1) {
-      push(titleLines[i], titleSize, SHARE_SERIF, 'rgba(236, 240, 246, 0.62)', titleTracking, Math.round(titleSize * 1.55));
-    }
-  }
-  if (caption.dateLabel) {
-    push(caption.dateLabel, dateSize, SHARE_SANS, 'rgba(236, 240, 246, 0.84)', dateSize * 0.16, Math.round(dateSize * 1.7));
-  }
-  if (caption.name) {
-    push(caption.name, nameSize, SHARE_SANS, 'rgba(236, 240, 246, 0.92)', nameSize * 0.14);
-  }
-  if (showPhase) {
-    push(phase, phaseSize, SHARE_SERIF, 'rgba(236, 240, 246, 0.94)', phaseSize * 0.16);
-  }
-  const heightUsed = stack.reduce((sum, line) => sum + line.step, 0);
-  return { stack, heightUsed };
-}
-
 function paintSharePlate(ctx, width, height, caption, originX = 0) {
   ctx.save();
   ctx.beginPath();
@@ -504,27 +454,79 @@ function paintSharePlate(ctx, width, height, caption, originX = 0) {
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, width, height);
 
-  const moonBottom = height * 0.38 + (width * 0.66) / 2;
-  const ceiling = moonBottom + height * 0.045;
-  const floor = height - Math.round(height * 0.07);
-  const room = floor - ceiling;
-  let chosen = null;
-  for (let scale = 1; scale >= 0.52; scale -= 0.08) {
-    chosen = shareStack(ctx, caption, width, height, scale);
-    if (chosen.heightUsed <= room) break;
-  }
+  const minSide = Math.min(width, height);
+  const x0 = Math.round(width * 0.08);
+  const maxText = Math.round(width * 0.84);
+  const phaseSize = Math.max(64, Math.round(minSide * 0.052));
+  const nameSize = Math.max(40, Math.round(minSide * 0.03));
+  const dateSize = Math.max(36, Math.round(minSide * 0.026));
+  const poemSize = Math.max(36, Math.round(minSide * 0.03));
+  const authorSize = Math.max(28, Math.round(minSide * 0.022));
+  const phase = caption.phase;
+  const showPhase = phase && phase !== '—' && phase !== '无法计算';
 
   ctx.textBaseline = 'alphabetic';
   ctx.textAlign = 'left';
   ctx.shadowColor = 'rgba(5, 7, 13, 0.72)';
-  const x0 = Math.round(width * 0.08);
-  let y = floor;
-  for (const line of chosen.stack) {
+
+  const stack = [];
+  if (caption.poem?.author) {
+    stack.push({
+      text: caption.poem.author,
+      size: authorSize,
+      font: SHARE_SANS,
+      color: 'rgba(236, 240, 246, 0.7)',
+      tracking: authorSize * 0.14,
+    });
+  }
+  if (caption.poem?.text) {
+    ctx.font = `400 ${poemSize}px ${SHARE_SERIF}`;
+    const wrapped = wrapGlyphs(ctx, caption.poem.text, maxText, poemSize * 0.06);
+    for (let i = wrapped.length - 1; i >= 0; i -= 1) {
+      stack.push({
+        text: wrapped[i],
+        size: poemSize,
+        font: SHARE_SERIF,
+        color: 'rgba(236, 240, 246, 0.9)',
+        tracking: poemSize * 0.06,
+      });
+    }
+  }
+  if (caption.dateLabel) {
+    stack.push({
+      text: caption.dateLabel,
+      size: dateSize,
+      font: SHARE_SANS,
+      color: 'rgba(236, 240, 246, 0.84)',
+      tracking: dateSize * 0.16,
+    });
+  }
+  if (caption.name) {
+    stack.push({
+      text: caption.name,
+      size: nameSize,
+      font: SHARE_SANS,
+      color: 'rgba(236, 240, 246, 0.92)',
+      tracking: nameSize * 0.14,
+    });
+  }
+  if (showPhase) {
+    stack.push({
+      text: phase,
+      size: phaseSize,
+      font: SHARE_SERIF,
+      color: 'rgba(236, 240, 246, 0.94)',
+      tracking: phaseSize * 0.16,
+    });
+  }
+
+  let y = height - Math.round(height * 0.07);
+  for (const line of stack) {
     ctx.font = `400 ${line.size}px ${line.font}`;
     ctx.fillStyle = line.color;
     ctx.shadowBlur = line.size * 0.35;
     paintTracked(ctx, line.text, x0, y, line.tracking);
-    y -= line.step;
+    y -= Math.round(line.size * 1.5);
   }
   ctx.restore();
 }
@@ -555,20 +557,13 @@ function measureTracked(ctx, text, tracking) {
   return width;
 }
 
-function clauseLines(ctx, text, maxWidth, tracking) {
+function coupletLines(ctx, text, maxWidth, tracking) {
   if (!text) return [];
-  const clauses = text.split(/(?<=[，。；])/u).map((part) => part.trim()).filter(Boolean);
-  if (clauses.length > 1 && clauses.every((clause) => measureTracked(ctx, clause, tracking) <= maxWidth)) {
-    return clauses;
-  }
-  if (measureTracked(ctx, text, tracking) <= maxWidth) return [text];
-  return wrapGlyphs(ctx, text, maxWidth, tracking);
-}
-
-function verseLayout(ctx, text, maxWidth, tracking) {
-  if (!text) return [];
-  if (measureTracked(ctx, text, tracking) <= maxWidth) return [text];
-  return clauseLines(ctx, text, maxWidth, tracking);
+  const line = text.replace(/\s+/g, '');
+  if (measureTracked(ctx, line, tracking) <= maxWidth) return [line];
+  const parts = line.split(/(?<=[，。；])/u).map((part) => part.trim()).filter(Boolean);
+  if (parts.length > 1 && parts.every((part) => measureTracked(ctx, part, tracking) <= maxWidth)) return parts;
+  return wrapGlyphs(ctx, line, maxWidth, tracking);
 }
 
 function fittedLines(ctx, text, maxWidth, tracking) {
@@ -583,52 +578,39 @@ function paintCentered(ctx, text, centerX, baseline, tracking) {
 
 function dualType(px) {
   return {
-    phaseSize: Math.max(56, Math.round(px * 0.155)),
-    nameSize: Math.max(32, Math.round(px * 0.078)),
-    dateSize: Math.max(30, Math.round(px * 0.072)),
-    poemSize: Math.max(28, Math.round(px * 0.072)),
-    titleSize: Math.max(22, Math.round(px * 0.046)),
-    authorSize: Math.max(22, Math.round(px * 0.044)),
+    phaseSize: Math.max(60, Math.round(px * 0.17)),
+    nameSize: Math.max(34, Math.round(px * 0.082)),
+    dateSize: Math.max(32, Math.round(px * 0.074)),
+    poemSize: Math.max(40, Math.round(px * 0.108)),
+    authorSize: Math.max(26, Math.round(px * 0.052)),
   };
 }
 
-function poemCenterRows(ctx, poem, maxWidth, type) {
-  if (!poem?.text && !poem?.lines?.length) return [];
-  const rows = [{ kind: 'rule', size: Math.max(8, Math.round(type.poemSize * 0.1)), baseline: 0 }];
-  let cursor = Math.round(type.titleSize * 1.15);
+function sharedLineRows(ctx, poem, maxWidth, type) {
+  if (!poem?.text) return [];
+  const rows = [];
+  let cursor = 0;
   const push = (kind, text, size, font, tracking, step) => {
     rows.push({ kind, text, size, font, tracking, baseline: cursor });
     cursor += step;
   };
-  if (poem.title) {
-    ctx.font = `400 ${type.titleSize}px ${SHARE_SERIF}`;
-    const tracking = type.titleSize * 0.2;
-    const titleLines = fittedLines(ctx, poem.title, maxWidth, tracking);
-    titleLines.forEach((text, index) => {
-      const last = index === titleLines.length - 1;
-      push('title', text, type.titleSize, SHARE_SERIF, tracking, Math.round(type.titleSize * (last ? 1.85 : 1.35)));
-    });
-  }
-  const verse = poem.lines?.length ? poem.lines : poem.text.split('\n');
+  push('rule', '', Math.max(2, Math.round(type.poemSize * 0.045)), SHARE_SERIF, 0, Math.round(type.poemSize * 0.85));
   ctx.font = `400 ${type.poemSize}px ${SHARE_SERIF}`;
-  const verseTracking = type.poemSize * 0.045;
-  const lines = [];
-  for (const line of verse) lines.push(...verseLayout(ctx, line, maxWidth, verseTracking));
+  const tracking = type.poemSize * 0.08;
+  const lines = coupletLines(ctx, poem.text, maxWidth, tracking);
   lines.forEach((text, index) => {
     const last = index === lines.length - 1;
-    push('verse', text, type.poemSize, SHARE_SERIF, verseTracking, Math.round(type.poemSize * (last ? 1.45 : 1.38)));
+    push('verse', text, type.poemSize, SHARE_SERIF, tracking, Math.round(type.poemSize * (last ? 1.15 : 1.28)));
   });
   if (poem.author) {
-    const tracking = type.authorSize * 0.22;
-    push('author', poem.author, type.authorSize, SHARE_SANS, tracking, Math.round(type.authorSize * 1.15));
+    push('author', poem.author, type.authorSize, SHARE_SANS, type.authorSize * 0.28, Math.round(type.authorSize * 1.1));
   }
   return rows;
 }
 
 /**
  * Phase, name, and the year-date stay on one vertical grid under each moon.
- * The poem is not split across the two columns: title, verse, and author
- * are a single block centered under both.
+ * One short line, then its author, is centered once under both.
  */
 function buildDualLayout(ctx, columns, px, poem, poemWidth) {
   const type = dualType(px);
@@ -659,24 +641,24 @@ function buildDualLayout(ctx, columns, px, poem, poemWidth) {
   };
 
   if (prepared.some((column) => column.showPhase)) {
-    add('phase', type.phaseSize, Math.round(type.phaseSize * 1.16));
+    add('phase', type.phaseSize, Math.round(type.phaseSize * 1.14));
   }
   for (let i = 0; i < nameSlots; i += 1) {
     const last = i === nameSlots - 1;
-    add(`name:${i}`, type.nameSize, Math.round(type.nameSize * (last ? 1.5 : 1.34)));
+    add(`name:${i}`, type.nameSize, Math.round(type.nameSize * (last ? 1.45 : 1.32)));
   }
-  add('date', type.dateSize, Math.round(type.dateSize * 1.05));
+  add('date', type.dateSize, Math.round(type.dateSize * 0.4));
 
   const ascent = rows.length ? rows[0].size * 0.86 : 0;
   const last = rows[rows.length - 1];
-  const columnHeight = last ? ascent + last.baseline + Math.round(last.size * 0.28) : 0;
-  const poemRows = poemCenterRows(ctx, poem, poemWidth, type);
-  const poemAscent = poemRows.length ? Math.max(type.titleSize, type.poemSize) * 0.2 : 0;
+  const columnHeight = last ? ascent + last.baseline + Math.round(last.size * 0.32) : 0;
+  const poemRows = sharedLineRows(ctx, poem, poemWidth, type);
+  const poemAscent = poemRows.length ? type.poemSize * 0.15 : 0;
   const poemLast = poemRows[poemRows.length - 1];
   const poemHeight = poemLast
-    ? poemAscent + poemLast.baseline + Math.round((poemLast.size || type.poemSize) * 0.35)
+    ? poemAscent + poemLast.baseline + Math.round((poemLast.size || type.authorSize) * 0.35)
     : 0;
-  const gap = poemRows.length ? Math.round(type.dateSize * 1.15) : 0;
+  const gap = poemRows.length ? Math.round(type.phaseSize * 0.72) : 0;
   return {
     rows,
     prepared,
@@ -692,15 +674,15 @@ function buildDualLayout(ctx, columns, px, poem, poemWidth) {
 }
 
 /**
- * Phase, name, and date under each moon, on one grid. The poem is painted
- * once, centered on the canvas, below both columns.
+ * Labels under each moon. The shared line is centered on the plate,
+ * with a pause between the dates and that one line.
  */
 function paintDualPlates(ctx, width, height, layout, captions) {
   const moonBottom = layout.centers[0].y + layout.targetPx * 0.5;
-  const scrim = ctx.createLinearGradient(0, moonBottom + layout.targetPx * 0.06, 0, height);
+  const scrim = ctx.createLinearGradient(0, moonBottom + layout.targetPx * 0.02, 0, height);
   scrim.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  scrim.addColorStop(0.28, 'rgba(0, 0, 0, 0.22)');
-  scrim.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
+  scrim.addColorStop(0.22, 'rgba(0, 0, 0, 0.18)');
+  scrim.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
   ctx.save();
   ctx.fillStyle = scrim;
   ctx.fillRect(0, 0, width, height);
@@ -718,22 +700,21 @@ function paintDualPlates(ctx, width, height, layout, captions) {
   });
   const poem = captions.find((caption) => caption.poem)?.poem || null;
 
-  const edge = Math.round(height * 0.055);
-  const gap = Math.round(layout.targetPx * 0.28);
-  const regionTop = moonBottom + gap;
+  const edge = Math.round(height * 0.072);
+  const regionTop = moonBottom + Math.round(layout.targetPx * 0.32);
   const regionBottom = height - edge;
-  const poemWidth = Math.round(width * 0.72);
+  const poemWidth = Math.round(width * 0.84);
 
   let scale = 1;
   let built = null;
-  for (let attempt = 0; attempt < 9; attempt += 1) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
     built = buildDualLayout(ctx, columns, layout.targetPx * scale, poem, poemWidth);
-    if (built.height <= regionBottom - regionTop || scale <= 0.46) break;
-    scale *= 0.88;
+    if (built.height <= regionBottom - regionTop || scale <= 0.72) break;
+    scale *= 0.9;
   }
 
   const room = Math.max(0, regionBottom - regionTop - built.height);
-  const top = regionTop + room / 2;
+  const top = regionTop + Math.min(room * 0.48, Math.round(height * 0.08));
   const { type } = built;
 
   built.prepared.forEach((column) => {
@@ -779,17 +760,15 @@ function paintDualPlates(ctx, width, height, layout, captions) {
     ctx.textBaseline = 'alphabetic';
     ctx.textAlign = 'left';
     if (row.kind === 'rule') {
-      const ruleW = Math.round(type.poemSize * 2.4);
+      const ruleW = Math.round(type.poemSize * 1.35);
       const thick = Math.max(2, row.size);
-      ctx.fillStyle = 'rgba(236, 240, 246, 0.38)';
+      ctx.fillStyle = 'rgba(236, 240, 246, 0.45)';
       ctx.fillRect(centerX - ruleW / 2, baseline - thick / 2, ruleW, thick);
     } else if (row.text) {
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-      ctx.shadowBlur = row.size * 0.45;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.82)';
+      ctx.shadowBlur = row.size * 0.42;
       ctx.font = `400 ${row.size}px ${row.font}`;
-      ctx.fillStyle = row.kind === 'author'
-        ? 'rgba(236, 240, 246, 0.66)'
-        : (row.kind === 'title' ? 'rgba(236, 240, 246, 0.58)' : 'rgba(236, 240, 246, 0.94)');
+      ctx.fillStyle = row.kind === 'author' ? 'rgba(236, 240, 246, 0.62)' : 'rgba(236, 240, 246, 0.96)';
       paintCentered(ctx, row.text, centerX, baseline, row.tracking);
     }
     ctx.restore();
