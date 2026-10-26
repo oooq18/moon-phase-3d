@@ -104,7 +104,7 @@ export function stepShanghaiDays(date, days) {
   return clampShanghaiDate(addShanghaiDays(date, days));
 }
 
-/** Civil month and day only, for the share image. No year, clock, or place. */
+/** Civil month and day, without the year, clock, or place. */
 export function formatShanghaiMonthDay(date) {
   const p = shanghaiParts(date);
   return `${p.month}月${p.day}日`;

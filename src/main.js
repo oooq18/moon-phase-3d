@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {
   computeLunar,
   formatISODateShanghai,
-  formatShanghaiMonthDay,
+  formatShanghaiYearMonthDay,
   isMidAutumn,
   isSameShanghaiDate,
   shanghaiDayIndex,
@@ -514,7 +514,7 @@ function captionFor(index) {
   return {
     phase: person.info?.name ?? '',
     name: person.name.trim(),
-    dateLabel: formatShanghaiMonthDay(person.date),
+    dateLabel: formatShanghaiYearMonthDay(person.date),
     poem: person.poem,
   };
 }
@@ -528,28 +528,158 @@ function downloadBlob(blob, filename) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-function formatDotDate(date) {
-  return formatISODateShanghai(date).replaceAll('-', '.');
-}
-
-function paintDotDate(ctx, text, x, y, size) {
-  ctx.save();
-  ctx.font = `500 ${size}px ${SHARE_SANS}`;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(4, 8, 16, 0.6)';
-  ctx.shadowBlur = size * 0.4;
-  const tracking = size * 0.08;
+function measureTracked(ctx, text, tracking) {
   let width = 0;
   for (const glyph of text) width += ctx.measureText(glyph).width + tracking;
-  width -= tracking;
-  let cursor = x - width / 2;
-  for (const glyph of text) {
-    ctx.fillText(glyph, cursor, y);
-    cursor += ctx.measureText(glyph).width + tracking;
+  if (text.length) width -= tracking;
+  return width;
+}
+
+function verseLines(ctx, text, maxWidth, tracking) {
+  const clauses = text.split(/(?<=[，。；])/u).map((part) => part.trim()).filter(Boolean);
+  if (clauses.length > 1 && clauses.every((clause) => measureTracked(ctx, clause, tracking) <= maxWidth)) {
+    return clauses;
   }
+  if (measureTracked(ctx, text, tracking) <= maxWidth) return [text];
+  return wrapGlyphs(ctx, text, maxWidth, tracking);
+}
+
+function paintCentered(ctx, text, centerX, baseline, tracking) {
+  paintTracked(ctx, text, centerX - measureTracked(ctx, text, tracking) / 2, baseline, tracking);
+}
+
+/**
+ * One caption column under each moon. Both columns share a top so the
+ * phase names line up, and each column is centered on its moon without
+ * crossing the gutter. Couplets break at the comma when both halves fit.
+ */
+function paintDualPlates(ctx, width, height, layout, captions) {
+  const moonBottom = layout.centers[0].y + layout.targetPx * 0.5;
+  const scrim = ctx.createLinearGradient(0, moonBottom + layout.targetPx * 0.06, 0, height);
+  scrim.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  scrim.addColorStop(0.3, 'rgba(0, 0, 0, 0.2)');
+  scrim.addColorStop(1, 'rgba(0, 0, 0, 0.48)');
+  ctx.save();
+  ctx.fillStyle = scrim;
+  ctx.fillRect(0, 0, width, height);
   ctx.restore();
+
+  const gutter = Math.round(width * 0.03);
+  const pad = Math.round(width * 0.05);
+  const half = width / 2;
+  const columns = captions.map((caption, index) => {
+    const centerX = layout.centers[index].x;
+    const leftLimit = centerX < half ? pad : half + gutter;
+    const rightLimit = centerX < half ? half - gutter : width - pad;
+    const maxWidth = Math.floor(2 * Math.min(centerX - leftLimit, rightLimit - centerX));
+    return { caption, centerX, maxWidth };
+  });
+
+  const edge = Math.round(height * 0.062);
+  const gap = Math.round(layout.targetPx * 0.36);
+  const regionTop = moonBottom + gap;
+  const regionBottom = height - edge;
+
+  let scale = 1;
+  let built = [];
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const px = layout.targetPx * scale;
+    built = columns.map((column) => buildDualColumn(ctx, column, px));
+    const blockH = Math.max(...built.map((column) => column.height), 0);
+    if (blockH <= regionBottom - regionTop || scale <= 0.74) break;
+    scale *= 0.9;
+  }
+
+  const blockH = Math.max(...built.map((column) => column.height), 0);
+  const room = Math.max(0, regionBottom - regionTop - blockH);
+  const top = regionTop + room / 2;
+
+  built.forEach((column) => {
+    let baseline = top + column.lines[0].ascent;
+    for (const line of column.lines) {
+      ctx.save();
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.78)';
+      ctx.shadowBlur = line.size * 0.4;
+      if (line.kind === 'rule') {
+        const ruleW = line.ruleW;
+        ctx.fillStyle = line.color;
+        ctx.shadowBlur = 0;
+        ctx.fillRect(column.centerX - ruleW / 2, baseline - line.thick / 2, ruleW, line.thick);
+      } else {
+        ctx.font = `400 ${line.size}px ${line.font}`;
+        ctx.fillStyle = line.color;
+        paintCentered(ctx, line.text, column.centerX, baseline, line.tracking);
+      }
+      ctx.restore();
+      baseline += line.advance;
+    }
+  });
+}
+
+function buildDualColumn(ctx, column, px) {
+  const phaseSize = Math.max(64, Math.round(px * 0.17));
+  const nameSize = Math.max(36, Math.round(px * 0.084));
+  const dateSize = Math.max(34, Math.round(px * 0.078));
+  const poemSize = Math.max(36, Math.round(px * 0.092));
+  const authorSize = Math.max(28, Math.round(px * 0.058));
+  const caption = column.caption;
+  const phase = caption.phase;
+  const showPhase = phase && phase !== '—' && phase !== '无法计算';
+  const lines = [];
+
+  const addText = (text, size, font, color, tracking, advance) => {
+    ctx.font = `400 ${size}px ${font}`;
+    const parts = verseLines(ctx, text, column.maxWidth, tracking);
+    parts.forEach((part, index) => {
+      const last = index === parts.length - 1;
+      lines.push({
+        kind: 'text',
+        text: part,
+        size,
+        font,
+        color,
+        tracking,
+        ascent: size * 0.86,
+        advance: last ? advance : Math.round(size * 1.38),
+      });
+    });
+  };
+
+  if (showPhase) {
+    addText(phase, phaseSize, SHARE_SERIF, 'rgba(236, 240, 246, 0.96)', phaseSize * 0.18, Math.round(phaseSize * 1.18));
+  }
+  if (caption.name) {
+    addText(caption.name, nameSize, SHARE_SANS, 'rgba(236, 240, 246, 0.92)', nameSize * 0.12, Math.round(nameSize * 1.55));
+  }
+  if (caption.dateLabel) {
+    addText(caption.dateLabel, dateSize, SHARE_SANS, 'rgba(236, 240, 246, 0.84)', dateSize * 0.12, Math.round(dateSize * 1.28));
+  }
+  if (caption.poem?.text) {
+    lines.push({
+      kind: 'rule',
+      size: poemSize,
+      thick: Math.max(8, Math.round(poemSize * 0.09)),
+      ruleW: Math.round(poemSize * 3.4),
+      color: 'rgba(236, 240, 246, 0.42)',
+      ascent: poemSize * 0.45,
+      advance: Math.round(poemSize * 1.28),
+    });
+    addText(caption.poem.text, poemSize, SHARE_SERIF, 'rgba(236, 240, 246, 0.92)', poemSize * 0.06, Math.round(poemSize * 1.45));
+    if (caption.poem.author) {
+      const last = lines[lines.length - 1];
+      last.advance = Math.round(poemSize * 1.35);
+      addText(caption.poem.author, authorSize, SHARE_SANS, 'rgba(236, 240, 246, 0.68)', authorSize * 0.22, Math.round(authorSize * 1.2));
+    }
+  }
+
+  if (!lines.length) return { ...column, lines: [{ kind: 'text', text: '', size: 1, font: SHARE_SANS, color: 'transparent', tracking: 0, ascent: 0, advance: 0 }], height: 0 };
+
+  let height = lines[0].ascent;
+  for (let i = 0; i < lines.length - 1; i += 1) height += lines[i].advance;
+  height += Math.round(lines[lines.length - 1].size * 0.28);
+  return { ...column, lines, height };
 }
 
 async function shareView(gl, scene, camera, stars, frameShare, frameDualShare) {
@@ -574,10 +704,7 @@ async function shareView(gl, scene, camera, stars, frameShare, frameDualShare) {
       const layout = frameDualShare();
       gl.render(scene, camera);
       ctx.drawImage(source, 0, 0, frameW, frameH, 0, 0, frameW, frameH);
-      const dateSize = Math.round(layout.targetPx * 0.115);
-      const dateY = layout.centers[0].y + layout.targetPx * 0.5 + layout.targetPx * 0.34;
-      paintDotDate(ctx, formatDotDate(people[0].date), layout.centers[0].x, dateY, dateSize);
-      paintDotDate(ctx, formatDotDate(people[1].date), layout.centers[1].x, dateY, dateSize);
+      paintDualPlates(ctx, frameW, frameH, layout, [captionFor(0), captionFor(1)]);
     } else {
       frameShare(0);
       gl.render(scene, camera);
