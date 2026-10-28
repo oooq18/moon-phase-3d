@@ -1,72 +1,43 @@
 /* ==========================================================================
-   观月 · visionOS 通透玻璃设计体系
+   观月 · 极简重构
    --------------------------------------------------------------------------
-   设计取向：面板悬浮为独立玻璃浮层，强调景深、柔光投影与层次分离；
-   控件更轻、留白更大、动效更缓。
-   全部动效走 CSS transition / animation，并在 prefers-reduced-motion 下降级。
+   设计原则：单一平面，不嵌套容器。
+   - 整个界面只有一块玻璃（底部面板），面板内部不再有任何卡片/描边盒子
+   - 层次只靠三样东西表达：字号、灰阶、留白
+   - 控件压成一行，同类同高，视觉节奏统一
+   - 分隔只用发丝线（hairline），且只在必要时出现
    ========================================================================== */
 
 :root {
   color-scheme: dark;
 
-  /* ---- 墨色阶（Apple 中性灰，冷调） ---- */
-  --ink: rgba(245, 247, 250, 0.96);
-  --ink-2: rgba(235, 239, 245, 0.78);
-  --whisper: rgba(232, 237, 244, 0.62);
-  --muted: rgba(228, 234, 242, 0.44);
-  --faint: rgba(226, 232, 240, 0.30);
+  /* 四级灰阶，够了 */
+  --ink: rgba(250, 251, 253, 0.98);
+  --ink-2: rgba(240, 243, 248, 0.72);
+  --muted: rgba(235, 239, 245, 0.44);
+  --faint: rgba(232, 237, 244, 0.26);
 
-  /* ---- 玻璃材质 ---- */
-  --glass-1: rgba(28, 32, 42, 0.42);   /* 主浮层 */
-  --glass-2: rgba(255, 255, 255, 0.075); /* 浮层内控件 */
-  --glass-3: rgba(255, 255, 255, 0.045); /* 更轻的控件 */
-  --glass-hi: rgba(255, 255, 255, 0.16); /* 顶部高光描边 */
-  --glass-lo: rgba(255, 255, 255, 0.05);
-  --line: rgba(255, 255, 255, 0.10);
-  --line-strong: rgba(255, 255, 255, 0.20);
+  /* 单一玻璃面 */
+  --surface: rgba(22, 25, 32, 0.52);
+  --surface-soft: rgba(255, 255, 255, 0.055);
+  --hairline: rgba(255, 255, 255, 0.10);
+  --accent: rgba(110, 175, 255, 0.95);
 
-  /* ---- 强调色（Apple systemBlue 深色模式） ---- */
-  --accent: rgba(100, 168, 255, 0.92);
-  --accent-soft: rgba(100, 168, 255, 0.20);
+  /* 圆角：只用两档 */
+  --r-panel: 24px;
+  --r-control: 12px;
 
-  /* ---- 景深：柔光投影（多层叠加制造空间分离） ---- */
-  --depth-float:
-    0 0 0 0.5px rgba(255, 255, 255, 0.10) inset,
-    0 1px 0 0 rgba(255, 255, 255, 0.14) inset,
-    0 -1px 0 0 rgba(0, 0, 0, 0.24) inset,
-    0 2px 6px rgba(0, 0, 0, 0.20),
-    0 12px 28px rgba(0, 0, 0, 0.28),
-    0 32px 64px rgba(0, 0, 0, 0.36);
-  --depth-chip:
-    0 0 0 0.5px rgba(255, 255, 255, 0.07) inset,
-    0 1px 2px rgba(0, 0, 0, 0.22),
-    0 4px 12px rgba(0, 0, 0, 0.18);
-
-  /* ---- 圆角（Apple 连续圆角比例） ---- */
-  --r-float: 30px;
-  --r-sheet: 26px;
-  --r-chip: 14px;
-  --r-pill: 999px;
-
-  /* ---- 缓动：Apple 标准曲线（快出慢入） ---- */
+  /* 缓动 */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
-  --t-fast: 240ms;
-  --t-mid: 420ms;
-  --t-slow: 720ms;
+  --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
+  --t-fast: 200ms;
+  --t-mid: 380ms;
 
-  /* ---- 字栈：SF Pro / 苹方优先 ---- */
   --sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
-    "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
-    "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  --serif:
-    "New York", "Iowan Old Style", "Palatino Linotype", Palatino,
-    "Songti SC", "Source Han Serif SC", "Noto Serif SC", "STSong", serif;
-  --mono:
-    ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono",
-    "Source Code Pro", "PingFang SC", "Microsoft YaHei", monospace;
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --serif: "New York", "Songti SC", "Source Han Serif SC", "Noto Serif SC", serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, "PingFang SC", monospace;
 }
 
 * {
@@ -77,21 +48,20 @@ html,
 body {
   margin: 0;
   height: 100%;
-  background: #000000;
+  background: #000;
   color: var(--ink-2);
   font-family: var(--sans);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: var(--accent-soft);
-  color: #ffffff;
+  background: rgba(110, 175, 255, 0.28);
+  color: #fff;
 }
 
-/* ---------- 三维画布 ---------- */
+/* ---------- 背景层 ---------- */
 
 #scene {
   position: fixed;
@@ -103,15 +73,12 @@ body {
   z-index: 0;
 }
 
-/* 暗角：把视线往中央月球收，同时给浮层留出台阶 */
 .vignette {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  background:
-    radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.10) 78%, rgba(0, 0, 0, 0.42) 100%),
-    linear-gradient(to top, rgba(0, 0, 0, 0.52) 0%, rgba(0, 0, 0, 0.16) 26%, transparent 52%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.58) 0%, rgba(0, 0, 0, 0.14) 30%, transparent 58%);
 }
 
 .grain {
@@ -119,133 +86,98 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  opacity: 0.018;
+  opacity: 0.014;
   mix-blend-mode: overlay;
   background-size: 180px 180px;
 }
 
-/* ---------- 品牌：独立玻璃胶囊，悬浮左上 ---------- */
+/* ---------- 品牌：极简文字，不再是胶囊 ---------- */
 
 .brand {
   position: fixed;
-  z-index: 5;
-  top: max(22px, env(safe-area-inset-top));
-  left: max(28px, env(safe-area-inset-left));
-  display: inline-flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 11px 20px 12px;
-  border-radius: var(--r-chip);
-  background: var(--glass-1);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  backdrop-filter: blur(28px) saturate(180%);
-  box-shadow: var(--depth-chip);
+  z-index: 4;
+  top: max(20px, env(safe-area-inset-top));
+  left: max(24px, env(safe-area-inset-left));
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   pointer-events: none;
-  animation: float-in var(--t-slow) var(--ease-out) both;
-}
-
-@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-  .brand,
-  .hud,
-  .mode-switch,
-  .person,
-  .cluster,
-  .control-extra > button {
-    background: rgba(18, 21, 28, 0.86);
-  }
+  animation: fade-in 900ms var(--ease) both;
 }
 
 .brand-mark {
   margin: 0;
   color: var(--faint);
   font-family: var(--mono);
-  font-size: 0.55rem;
-  font-weight: 500;
-  letter-spacing: 0.30em;
+  font-size: 0.56rem;
+  font-weight: 400;
+  letter-spacing: 0.22em;
   line-height: 1;
   text-transform: uppercase;
 }
 
 .brand h1 {
   margin: 0;
-  color: var(--ink);
-  font-family: var(--sans);
-  font-size: 0.88rem;
-  font-weight: 600;
-  letter-spacing: 0.30em;
+  color: var(--ink-2);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
   line-height: 1;
-  text-indent: 0.30em; /* 视觉居中补偿尾随字距 */
 }
 
 /* ---------- WebGL 失败提示 ---------- */
 
 .webgl-error {
   position: fixed;
-  z-index: 6;
-  inset: 20% 12% auto;
-  padding: 18px 22px;
+  z-index: 5;
+  inset: 22% 14% auto;
   text-align: center;
-  color: var(--whisper);
-  letter-spacing: 0.04em;
-  border-radius: var(--r-chip);
-  background: var(--glass-1);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  backdrop-filter: blur(24px) saturate(180%);
-  box-shadow: var(--depth-chip);
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.6;
 }
 
 .webgl-error p {
-  margin: 0.28rem 0;
-  font-size: 0.86rem;
-  line-height: 1.5;
-}
-
-.webgl-error p + p {
-  color: var(--muted);
-  font-size: 0.78rem;
+  margin: 0.2rem 0;
 }
 
 /* ==========================================================================
-   主浮层：悬浮玻璃仪表
+   底部面板：全场唯一一块玻璃
    ========================================================================== */
 
 .hud {
   position: fixed;
-  z-index: 5;
+  z-index: 4;
   left: 50%;
-  right: auto;
-  bottom: max(26px, env(safe-area-inset-bottom));
+  bottom: max(24px, env(safe-area-inset-bottom));
   transform: translateX(-50%);
-  width: min(46rem, calc(100vw - 48px));
+  width: min(44rem, calc(100vw - 40px));
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 26px 30px 24px;
-  border-radius: var(--r-float);
-  background: var(--glass-1);
-  -webkit-backdrop-filter: blur(38px) saturate(190%);
-  backdrop-filter: blur(38px) saturate(190%);
-  box-shadow: var(--depth-float);
-  pointer-events: auto;
-  animation: rise-in 900ms var(--ease-out) both;
+  gap: 20px;
+  padding: 24px 28px 22px;
+  border-radius: var(--r-panel);
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
+  box-shadow:
+    0 0 0 0.5px var(--hairline) inset,
+    0 12px 40px rgba(0, 0, 0, 0.34),
+    0 2px 8px rgba(0, 0, 0, 0.22);
+  animation: rise-in 780ms var(--ease) both;
 }
 
-.hud > * {
-  pointer-events: auto;
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .hud {
+    background: rgba(16, 18, 24, 0.92);
+  }
 }
 
 .fallback {
-  width: 100%;
   margin: 0;
-  padding: 9px 14px;
-  color: var(--whisper);
-  font-family: var(--mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.02em;
-  line-height: 1.45;
-  border-radius: 10px;
-  background: rgba(255, 214, 130, 0.10);
-  box-shadow: 0 0 0 0.5px rgba(255, 214, 130, 0.22) inset;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.5;
 }
 
 .fallback[hidden] {
@@ -255,39 +187,33 @@ body {
 /* ---------- 标题区 ---------- */
 
 .caption {
-  align-self: stretch;
   width: 100%;
 }
 
 .eyebrow {
-  margin: 0 0 9px;
+  margin: 0 0 6px;
   color: var(--accent);
-  font-family: var(--sans);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.22em;
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
   line-height: 1;
-  text-transform: uppercase;
 }
 
 .phase-name {
   margin: 0;
   color: var(--ink);
-  font-family: var(--sans);
+  font-size: clamp(1.9rem, 3.4vw, 2.5rem);
   font-weight: 600;
-  font-size: clamp(2.5rem, 4.6vw, 3.5rem);
-  letter-spacing: -0.015em;
-  line-height: 1.02;
+  letter-spacing: -0.012em;
+  line-height: 1.1;
 }
 
 .poem {
-  margin: 14px 0 0;
-  max-width: 32rem;
-  color: var(--whisper);
+  margin: 10px 0 0;
+  max-width: 30rem;
+  color: var(--muted);
   font-family: var(--serif);
-  font-size: 0.98rem;
-  font-weight: 400;
-  letter-spacing: 0.02em;
+  font-size: 0.92rem;
   line-height: 1.55;
 }
 
@@ -298,118 +224,85 @@ body {
 .poem-author {
   color: var(--faint);
   font-family: var(--sans);
-  font-size: 0.74em;
-  font-weight: 400;
-  letter-spacing: 0.08em;
+  font-size: 0.76em;
+  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 
 .poem-author::before {
   content: "·";
-  margin: 0 0.42em 0 0.56em;
-  letter-spacing: 0;
+  margin: 0 0.4em 0 0.5em;
 }
 
 .poem-author:empty {
   display: none;
 }
 
-/* ---------- 数据区：浮层内的次级层次 ---------- */
+/* ---------- 数据区：无盒子，只有发丝线 ---------- */
 
 .metrics {
+  display: flex;
   width: 100%;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 2px;
   margin: 0;
-  padding: 15px 4px;
-  border-radius: var(--r-chip);
-  background: var(--glass-3);
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.06) inset,
-    0 1px 2px rgba(0, 0, 0, 0.14);
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
 }
 
 .metrics > div {
-  position: relative;
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 0 18px;
-}
-
-.metrics > div:first-child {
-  padding-left: 16px;
-}
-
-.metrics > div:last-child {
+  gap: 6px;
   padding-right: 16px;
 }
 
-.metrics > div + div::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 1px;
-  bottom: 1px;
-  width: 1px;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    rgba(255, 255, 255, 0.12) 26%,
-    rgba(255, 255, 255, 0.12) 74%,
-    transparent
-  );
+.metrics > div:last-child {
+  padding-right: 0;
 }
 
 .metrics dt {
   margin: 0;
-  color: var(--muted);
-  font-family: var(--sans);
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.10em;
+  color: var(--faint);
+  font-size: 0.66rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
   line-height: 1;
 }
 
 .metrics dd {
   display: flex;
   align-items: baseline;
-  gap: 0.26em;
-  height: 1.35rem;
+  gap: 0.24em;
+  height: 1.3rem;
   margin: 0;
   overflow: hidden;
   color: var(--ink);
-  font-family: var(--sans);
-  font-size: 1.06rem;
+  font-size: 1.02rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  line-height: 1.35;
+  line-height: 1.3;
   letter-spacing: -0.01em;
 }
 
 .metrics dd .num,
 .metrics dd .unit {
   font-variant-numeric: tabular-nums;
-  line-height: 1.35;
-  will-change: transform, opacity;
+  line-height: 1.3;
 }
 
 .metrics dd .unit {
-  color: var(--whisper);
-  font-size: 0.70em;
+  color: var(--muted);
+  font-size: 0.72em;
   font-weight: 400;
-  letter-spacing: 0;
 }
 
-/* 数值滚动过渡 */
 .metrics dd.is-rolling .num,
 .metrics dd.is-rolling .unit {
-  animation: roll-in var(--t-mid) var(--ease-out) both;
+  animation: roll-in var(--t-mid) var(--ease) both;
 }
 
-/* ---------- 淡入淡出（文字切换） ---------- */
+/* ---------- 文字切换淡入淡出 ---------- */
 
 .phase-name,
 .poem,
@@ -418,7 +311,7 @@ body {
 }
 
 .is-dim {
-  opacity: 0.22;
+  opacity: 0.2;
 }
 
 /* ---------- 双月身份行 ---------- */
@@ -426,15 +319,11 @@ body {
 .identity {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px 18px;
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-family: var(--sans);
+  gap: 4px 14px;
+  margin: 10px 0 0;
+  color: var(--faint);
   font-size: 0.72rem;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  line-height: 1.45;
-  transition: opacity var(--t-mid) var(--ease);
+  line-height: 1.4;
 }
 
 .identity[hidden] {
@@ -442,75 +331,48 @@ body {
 }
 
 .identity span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
   transition: color var(--t-fast) var(--ease);
 }
 
-.identity span::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border-radius: var(--r-pill);
-  background: currentColor;
-  opacity: 0.42;
-  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease-spring);
-}
-
 .identity span.is-active {
-  color: var(--ink);
-}
-
-.identity span.is-active::before {
-  opacity: 1;
-  background: var(--accent);
-  transform: scale(1.24);
+  color: var(--ink-2);
 }
 
 /* ==========================================================================
-   控件区
+   控件区：压成一行
    ========================================================================== */
 
 .dock {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   width: 100%;
 }
 
-/* ---------- 分段控件：滑块位移 ---------- */
+/* ---------- 分段控件 ---------- */
 
 .mode-switch {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex: 0 0 auto;
   height: 36px;
-  padding: 2.5px;
-  border-radius: var(--r-pill);
-  background: var(--glass-2);
-  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.07) inset;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--surface-soft);
   isolation: isolate;
 }
 
 .seg-thumb {
   position: absolute;
   z-index: 0;
-  top: 2.5px;
-  bottom: 2.5px;
-  left: 2.5px;
-  width: calc(50% - 2.5px);
-  border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.16);
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.22) inset,
-    0 1px 3px rgba(0, 0, 0, 0.28),
-    0 4px 10px rgba(0, 0, 0, 0.18);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
   transition: transform var(--t-mid) var(--ease-spring);
-  will-change: transform;
 }
 
 .mode-switch:has(#mode-dual[aria-checked="true"]) .seg-thumb {
@@ -524,24 +386,18 @@ body {
   margin: 0;
   border: 0;
   background: transparent;
-  color: var(--whisper);
+  color: var(--muted);
   font-family: var(--sans);
   font-size: 0.76rem;
   font-weight: 500;
-  letter-spacing: 0.10em;
-  padding: 0;
-  height: 100%;
+  padding: 0 16px;
+  height: 32px;
   cursor: pointer;
-  border-radius: var(--r-pill);
+  border-radius: 8px;
   transition: color var(--t-mid) var(--ease), transform var(--t-fast) var(--ease-spring);
 }
 
 .mode-switch button[aria-checked="true"] {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.mode-switch button:hover {
   color: var(--ink);
 }
 
@@ -551,103 +407,91 @@ body {
 
 .mode-switch button:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 
-/* ---------- 人物卡 ---------- */
+/* ---------- 人物：不再是卡片，只是一段输入 ---------- */
 
 .people {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
   gap: 8px;
-  width: 100%;
+  min-width: 0;
 }
 
-.people[data-mode="dual"] {
-  grid-template-columns: 1fr 1fr;
+.people[data-mode="single"] #person-1 {
+  display: none;
 }
 
 .person {
   display: flex;
+  flex: 1 1 0;
+  align-items: center;
   min-width: 0;
-  height: 44px;
-  padding: 3px;
-  border-radius: var(--r-chip);
-  background: var(--glass-2);
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.06) inset,
-    0 1px 2px rgba(0, 0, 0, 0.16);
-  transition:
-    box-shadow var(--t-mid) var(--ease),
-    background var(--t-mid) var(--ease),
-    transform var(--t-fast) var(--ease-spring);
-}
-
-.person.is-active {
-  background: var(--glass-2);
-  box-shadow:
-    0 0 0 1px var(--accent) inset,
-    0 0 0 3px var(--accent-soft),
-    0 2px 8px rgba(0, 0, 0, 0.22);
-}
-
-.people[data-mode="single"] #person-1,
-.people[data-mode="single"] .person-pick {
-  display: none;
-}
-
-.people[data-mode="single"] .person {
-  justify-content: center;
-}
-
-.name-field,
-.person-pick {
-  appearance: none;
-  margin: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font-family: var(--sans);
-  font-size: 0.78rem;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  height: 38px;
-  min-width: 0;
-  border-radius: 11px;
-  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease-spring);
+  height: 36px;
+  gap: 6px;
 }
 
 .name-field {
-  width: 6.4rem;
+  appearance: none;
+  flex: 0 1 7.5rem;
+  min-width: 0;
+  height: 36px;
+  margin: 0;
   padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 0.78rem;
   color-scheme: dark;
+  transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease-spring);
 }
 
 .name-field::placeholder {
   color: var(--faint);
 }
 
-.people[data-mode="single"] .name-field {
-  width: 100%;
-  max-width: 13rem;
-  text-align: center;
+.name-field:hover {
+  background: rgba(255, 255, 255, 0.085);
+}
+
+.name-field:active {
+  transform: scale(0.98);
+}
+
+/* 双月时用一条发丝线区分两个人，而不是加框 */
+.people[data-mode="dual"] .person + .person {
+  border-left: 1px solid var(--hairline);
+  padding-left: 8px;
 }
 
 .person-pick {
-  flex: 1;
-  display: inline-flex;
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 9px;
-  padding: 0 13px;
+  height: 36px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
-  color: var(--whisper);
-  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.08);
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease-spring);
 }
 
 .person-pick:hover {
-  background: rgba(255, 255, 255, 0.06);
   color: var(--ink);
+  background: var(--surface-soft);
 }
 
 .person-pick:active {
@@ -655,83 +499,47 @@ body {
 }
 
 .person.is-active .person-pick {
-  color: var(--ink);
-}
-
-.person-side {
-  color: var(--faint);
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-}
-
-.person.is-active .person-side {
   color: var(--accent);
-}
-
-.person-when {
-  font-family: var(--mono);
-  font-size: 0.76rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
 }
 
 .person-pick:focus-visible,
 .name-field:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-  position: relative;
-  z-index: 1;
 }
 
-/* ---------- 日期快门 ---------- */
+/* ---------- 日期行 ---------- */
 
 .cluster {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  width: 100%;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
 }
 
 .control-nav,
 .control-extra {
-  display: contents;
-}
-
-.control-nav {
   display: flex;
-  align-items: stretch;
-  height: 44px;
-  padding: 3px;
-  border-radius: var(--r-chip);
-  background: var(--glass-2);
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.06) inset,
-    0 1px 2px rgba(0, 0, 0, 0.16);
-}
-
-.control-nav > * {
-  height: 38px;
+  align-items: center;
+  gap: 4px;
 }
 
 .cluster button,
 .date-field input {
   appearance: none;
-  font-family: var(--sans);
-  color: var(--ink-2);
-  background: transparent;
-  border: 0;
-  border-radius: 11px;
-  height: 38px;
-  min-height: 38px;
-  max-height: 38px;
+  height: 36px;
   margin: 0;
-  padding: 0 14px;
-  letter-spacing: 0.04em;
-  font-size: 0.76rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--ink-2);
+  font-family: var(--sans);
+  font-size: 0.78rem;
   font-weight: 500;
-  line-height: 1;
+  letter-spacing: 0.01em;
+  padding: 0 13px;
   white-space: nowrap;
+  cursor: pointer;
   touch-action: manipulation;
   transition:
     color var(--t-fast) var(--ease),
@@ -740,17 +548,10 @@ body {
     opacity var(--t-fast) var(--ease);
 }
 
-.cluster button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
 .cluster button:hover,
 .date-field input:hover {
+  background: rgba(255, 255, 255, 0.09);
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .cluster button:active,
@@ -759,13 +560,13 @@ body {
 }
 
 .cluster button:disabled {
-  opacity: 0.30;
+  opacity: 0.3;
   cursor: default;
 }
 
 .cluster button:disabled:hover {
+  background: var(--surface-soft);
   color: var(--ink-2);
-  background: transparent;
 }
 
 .cluster button:disabled:active {
@@ -776,96 +577,58 @@ button[hidden] {
   display: none !important;
 }
 
-.control-nav > * + * {
-  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.08);
+/* 前一天 / 后一天 收窄成图标位宽度 */
+#prev,
+#next {
+  padding: 0 12px;
+  font-size: 0.74rem;
 }
 
-.control-extra {
+.date-field {
   display: flex;
-  gap: 8px;
+  flex: 0 0 auto;
 }
 
-.control-extra > button {
-  height: 44px;
-  min-height: 44px;
-  max-height: 44px;
-  padding: 0 20px;
-  border-radius: var(--r-chip);
-  background: var(--glass-2);
-  box-shadow: var(--depth-chip);
+.date-field input {
+  width: 8.6rem;
+  color: var(--ink);
+  color-scheme: dark;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  padding: 0 12px;
+  cursor: pointer;
 }
 
-.control-extra > button:hover {
-  background: rgba(255, 255, 255, 0.12);
+.date-field input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.5;
+  filter: brightness(0) invert(1);
+  transition: opacity var(--t-fast) var(--ease);
 }
 
-.control-extra > #share {
-  color: #ffffff;
-  font-weight: 600;
-  background: linear-gradient(
-    180deg,
-    rgba(120, 180, 255, 0.96),
-    rgba(70, 145, 240, 0.96)
-  );
-  box-shadow:
-    0 0 0 0.5px rgba(255, 255, 255, 0.28) inset,
-    0 1px 2px rgba(0, 0, 0, 0.24),
-    0 6px 18px rgba(70, 145, 240, 0.34);
+.date-field input:hover::-webkit-calendar-picker-indicator {
+  opacity: 0.85;
 }
 
-.control-extra > #share:hover {
-  background: linear-gradient(
-    180deg,
-    rgba(138, 192, 255, 0.98),
-    rgba(84, 158, 248, 0.98)
-  );
+/* 今天 / 分享：与其它控件同权重，不做主按钮 */
+#share {
+  color: var(--ink);
 }
 
-.control-extra > #share:disabled {
+#share:disabled {
   color: var(--muted);
-  background: var(--glass-2);
-  box-shadow: var(--depth-chip);
   opacity: 0.5;
 }
 
 .cluster button:focus-visible,
 .date-field input:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  position: relative;
-  z-index: 1;
+  outline-offset: 1px;
 }
 
-.date-field {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-}
-
-.date-field input {
-  width: 100%;
-  color: var(--ink);
-  color-scheme: dark;
-  font-family: var(--mono);
-  font-size: 0.82rem;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-  padding: 0 12px;
-}
-
-.date-field input::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.62;
-  filter: brightness(0) invert(1);
-  transition: opacity var(--t-fast) var(--ease);
-}
-
-.date-field input:hover::-webkit-calendar-picker-indicator {
-  opacity: 0.92;
-}
-
-/* ---------- 无障碍：仅读屏可见 ---------- */
+/* ---------- 无障碍 ---------- */
 
 .sr-only {
   position: absolute;
@@ -879,37 +642,27 @@ button[hidden] {
   border: 0;
 }
 
-/* ==========================================================================
-   动效关键帧
-   ========================================================================== */
+/* ---------- 关键帧 ---------- */
 
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(26px) scale(0.985);
-    filter: blur(6px);
+    transform: translateX(-50%) translateY(18px);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
-    filter: blur(0);
+    transform: translateX(-50%) translateY(0);
   }
 }
 
-@keyframes float-in {
-  from {
-    opacity: 0;
-    transform: translateY(-12px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes roll-in {
   from {
-    transform: translateY(0.72em);
+    transform: translateY(0.7em);
     opacity: 0;
   }
   to {
@@ -919,26 +672,24 @@ button[hidden] {
 }
 
 /* ==========================================================================
-   响应式：移动端底部玻璃抽屉
+   响应式
    ========================================================================== */
 
 @media (max-width: 720px) {
   .brand {
     top: max(14px, env(safe-area-inset-top));
-    left: max(14px, env(safe-area-inset-left));
-    padding: 8px 14px 9px;
-    border-radius: 12px;
-  }
-
-  .brand h1 {
-    font-size: 0.76rem;
-    letter-spacing: 0.22em;
-    text-indent: 0.22em;
+    left: max(16px, env(safe-area-inset-left));
+    gap: 8px;
   }
 
   .brand-mark {
     font-size: 0.5rem;
-    letter-spacing: 0.24em;
+    letter-spacing: 0.16em;
+  }
+
+  .brand h1 {
+    font-size: 0.74rem;
+    letter-spacing: 0.16em;
   }
 
   .hud {
@@ -947,60 +698,36 @@ button[hidden] {
     bottom: 0;
     transform: none;
     width: 100%;
-    gap: 14px;
+    gap: 16px;
     padding: 18px 18px calc(16px + env(safe-area-inset-bottom));
-    border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+    border-radius: 20px 20px 0 0;
     box-shadow:
-      0 0 0 0.5px rgba(255, 255, 255, 0.10) inset,
-      0 1px 0 0 rgba(255, 255, 255, 0.12) inset,
-      0 -2px 8px rgba(0, 0, 0, 0.24),
-      0 -12px 32px rgba(0, 0, 0, 0.34),
-      0 -28px 60px rgba(0, 0, 0, 0.30);
-    animation: sheet-in 820ms var(--ease-out) both;
-  }
-
-  .caption {
-    display: block;
-  }
-
-  .eyebrow {
-    margin-bottom: 7px;
-    font-size: 0.58rem;
+      0 0 0 0.5px var(--hairline) inset,
+      0 -8px 32px rgba(0, 0, 0, 0.36);
+    animation: sheet-in 700ms var(--ease) both;
   }
 
   .phase-name {
-    font-size: 1.72rem;
-    letter-spacing: -0.01em;
-    line-height: 1.06;
+    font-size: 1.6rem;
   }
 
   .poem {
-    margin-top: 9px;
+    margin-top: 8px;
     max-width: none;
     font-size: 0.82rem;
-    line-height: 1.5;
   }
 
   .metrics {
-    padding: 12px 2px;
-    gap: 0;
+    padding-top: 14px;
   }
 
   .metrics > div {
-    padding: 0 12px;
-  }
-
-  .metrics > div:first-child {
-    padding-left: 14px;
-  }
-
-  .metrics > div:last-child {
-    padding-right: 14px;
+    gap: 5px;
+    padding-right: 10px;
   }
 
   .metrics dt {
-    font-size: 0.58rem;
-    letter-spacing: 0.06em;
+    font-size: 0.62rem;
   }
 
   .metrics dd {
@@ -1009,102 +736,106 @@ button[hidden] {
   }
 
   .identity {
-    margin-top: 0;
+    margin-top: 8px;
     font-size: 0.68rem;
-    gap: 5px 14px;
+    gap: 3px 12px;
   }
 
+  /* 窄屏：分段控件独占一行，其余控件排第二行 */
   .dock {
-    gap: 9px;
-  }
-
-  .people {
-    gap: 7px;
-  }
-
-  .people[data-mode="dual"] {
-    grid-template-columns: 1fr;
-  }
-
-  .person,
-  .control-nav {
-    height: 46px;
-  }
-
-  .name-field,
-  .person-pick,
-  .cluster button,
-  .date-field input {
-    height: 40px;
-    min-height: 40px;
-    max-height: 40px;
-  }
-
-  .cluster {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-  }
-
-  .control-extra {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-  }
-
-  .control-extra:has(#today:not([hidden])) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .control-extra > button {
-    width: 100%;
-    padding: 0 16px;
+    gap: 8px;
   }
 
   .mode-switch {
-    height: 40px;
+    flex: 1 1 100%;
   }
 
   .mode-switch button {
+    flex: 1;
+  }
+
+  .people {
+    flex: 1 1 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .people[data-mode="dual"] .person + .person {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .person {
+    height: 42px;
+    gap: 8px;
+  }
+
+  .name-field,
+  .person-pick {
+    height: 42px;
+    font-size: 0.82rem;
+  }
+
+  .name-field {
+    flex: 1 1 auto;
+  }
+
+  .cluster {
+    flex: 1 1 100%;
+    gap: 6px;
+  }
+
+  .control-nav {
+    flex: 1 1 auto;
+    gap: 6px;
+  }
+
+  .control-extra {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+
+  .cluster button,
+  .date-field input {
+    height: 42px;
     font-size: 0.8rem;
+  }
+
+  .date-field {
+    flex: 1 1 auto;
+  }
+
+  .date-field input {
+    width: 100%;
   }
 }
 
 @keyframes sheet-in {
   from {
     opacity: 0;
-    transform: translateY(34px);
-    filter: blur(6px);
+    transform: translateY(24px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-    filter: blur(0);
   }
 }
 
-/* ---------- 横屏矮视口：三栏压缩 ---------- */
+/* ---------- 横屏矮视口 ---------- */
 
 @media (max-height: 520px) and (orientation: landscape) {
-  .brand {
-    top: max(10px, env(safe-area-inset-top));
-    left: max(12px, env(safe-area-inset-left));
-    padding: 6px 12px 7px;
-    border-radius: 10px;
-  }
-
   .brand-mark {
     display: none;
   }
 
   .brand h1 {
-    font-size: 0.7rem;
-    letter-spacing: 0.2em;
-    text-indent: 0.2em;
+    font-size: 0.72rem;
   }
 
   .hud {
-    left: max(12px, env(safe-area-inset-left));
-    right: max(12px, env(safe-area-inset-right));
+    left: max(14px, env(safe-area-inset-left));
+    right: max(14px, env(safe-area-inset-right));
     bottom: max(10px, env(safe-area-inset-bottom));
     transform: none;
     width: auto;
@@ -1112,10 +843,10 @@ button[hidden] {
     grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
     grid-template-areas: "caption metrics dock";
     align-items: center;
-    column-gap: 20px;
-    row-gap: 8px;
-    padding: 12px 16px;
-    border-radius: 22px;
+    column-gap: 22px;
+    row-gap: 6px;
+    padding: 12px 18px;
+    border-radius: 18px;
   }
 
   .fallback {
@@ -1124,18 +855,16 @@ button[hidden] {
 
   .caption {
     grid-area: caption;
-    display: block;
     width: auto;
   }
 
   .phase-name {
-    font-size: 1.28rem;
-    letter-spacing: -0.01em;
+    font-size: 1.2rem;
   }
 
   .poem {
-    max-width: 12rem;
-    margin-top: 5px;
+    max-width: 11rem;
+    margin-top: 4px;
     font-size: 0.64rem;
     line-height: 1.4;
   }
@@ -1143,20 +872,17 @@ button[hidden] {
   .metrics {
     grid-area: metrics;
     width: 100%;
-    padding: 8px 2px;
+    padding-top: 0;
+    border-top: 0;
   }
 
   .metrics > div {
-    padding: 0 12px;
-  }
-
-  .metrics dt {
-    font-size: 0.55rem;
+    gap: 4px;
+    padding-right: 14px;
   }
 
   .metrics dd {
     height: 1rem;
-    margin: 0;
     font-size: 0.78rem;
   }
 
@@ -1166,9 +892,9 @@ button[hidden] {
 
   .dock {
     grid-area: dock;
-    align-items: flex-end;
     width: auto;
     max-width: 26rem;
+    flex-wrap: nowrap;
     gap: 6px;
   }
 
@@ -1177,61 +903,42 @@ button[hidden] {
   }
 
   .mode-switch button {
+    height: 28px;
+    padding: 0 12px;
     font-size: 0.7rem;
   }
 
-  .people {
-    width: 100%;
-  }
-
   .person,
-  .control-nav {
-    height: 40px;
-  }
-
   .name-field,
   .person-pick,
   .cluster button,
   .date-field input {
-    height: 34px;
-    min-height: 34px;
-    max-height: 34px;
+    height: 32px;
     font-size: 0.72rem;
   }
 
-  .control-extra > button {
-    height: 40px;
-    min-height: 40px;
-    max-height: 40px;
-    padding: 0 14px;
-  }
-
-  .date-field {
-    min-width: 8.4rem;
+  .date-field input {
+    width: 7.6rem;
   }
 }
 
 /* ==========================================================================
-   无障碍：降低动效偏好 —— 去掉位移/缩放/模糊，只保留必要的即时反馈
+   降低动效偏好
    ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
   .hud,
   .brand,
-  .webgl-error,
   .phase-name,
   .poem,
   .metrics dd,
   .identity,
   .identity span,
-  .identity span::before,
   .seg-thumb,
   .mode-switch button,
-  .person,
   .person-pick,
   .name-field,
   .cluster button,
-  .control-extra > button,
   .date-field input,
   .date-field input::-webkit-calendar-picker-indicator {
     animation: none !important;
@@ -1245,6 +952,7 @@ button[hidden] {
 
   .mode-switch button:active,
   .person-pick:active,
+  .name-field:active,
   .cluster button:active,
   .date-field input:active {
     transform: none;
