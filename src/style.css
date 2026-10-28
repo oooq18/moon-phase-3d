@@ -1,43 +1,37 @@
 /* ==========================================================================
-   观月 · 极简重构
+   观月 · 月相观测台
    --------------------------------------------------------------------------
-   设计原则：单一平面，不嵌套容器。
-   - 整个界面只有一块玻璃（底部面板），面板内部不再有任何卡片/描边盒子
-   - 层次只靠三样东西表达：字号、灰阶、留白
-   - 控件压成一行，同类同高，视觉节奏统一
-   - 分隔只用发丝线（hairline），且只在必要时出现
+   视觉语言：天文台仪表读数，而非 App 界面。
+   - 无毛玻璃、无投影堆叠、无胶囊圆角。文字直接落在星空上，
+     对比度由底部的暗场渐变（scrim）提供，界面本身是"透明"的。
+   - 配色只有一种：月色暖白，靠透明度分出四级层次。不用任何强调色。
+   - 字体分工固定：衬线负责"名"（观月、月相名、诗句），
+     等宽负责"数"（月龄、亮面、距离、日期）。
+   - 分隔只用一条发丝线，全站共计一条。
    ========================================================================== */
 
 :root {
   color-scheme: dark;
 
-  /* 四级灰阶，够了 */
-  --ink: rgba(250, 251, 253, 0.98);
-  --ink-2: rgba(240, 243, 248, 0.72);
-  --muted: rgba(235, 239, 245, 0.44);
-  --faint: rgba(232, 237, 244, 0.26);
+  /* 月色暖白，四级透明度 */
+  --ink: rgba(246, 243, 236, 0.94);
+  --ink-2: rgba(243, 240, 232, 0.64);
+  --muted: rgba(240, 236, 227, 0.40);
+  --faint: rgba(238, 234, 225, 0.24);
 
-  /* 单一玻璃面 */
-  --surface: rgba(22, 25, 32, 0.52);
-  --surface-soft: rgba(255, 255, 255, 0.055);
-  --hairline: rgba(255, 255, 255, 0.10);
-  --accent: rgba(110, 175, 255, 0.95);
+  --hairline: rgba(240, 236, 227, 0.16);
+  --hover: rgba(240, 236, 227, 0.07);
 
-  /* 圆角：只用两档 */
-  --r-panel: 24px;
-  --r-control: 12px;
+  --serif: "Songti SC", "Source Han Serif SC", "Noto Serif SC", "STSong",
+    "New York", "Iowan Old Style", Palatino, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+    "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono",
+    "PingFang SC", "Microsoft YaHei", monospace;
 
-  /* 缓动 */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
-  --t-fast: 200ms;
-  --t-mid: 380ms;
-
-  --sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
-    "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  --serif: "New York", "Songti SC", "Source Han Serif SC", "Noto Serif SC", serif;
-  --mono: ui-monospace, "SF Mono", SFMono-Regular, "PingFang SC", monospace;
+  --t-fast: 180ms;
+  --t-mid: 360ms;
 }
 
 * {
@@ -57,8 +51,8 @@ body {
 }
 
 ::selection {
-  background: rgba(110, 175, 255, 0.28);
-  color: #fff;
+  background: rgba(246, 243, 236, 0.22);
+  color: #fdfbf6;
 }
 
 /* ---------- 背景层 ---------- */
@@ -73,12 +67,15 @@ body {
   z-index: 0;
 }
 
+/* 暗场：把底部压暗，让仪表读数可读；不遮挡月球 */
 .vignette {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.58) 0%, rgba(0, 0, 0, 0.14) 30%, transparent 58%);
+  background:
+    linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.42) 18%, rgba(0, 0, 0, 0.06) 38%, transparent 56%),
+    radial-gradient(ellipse at 50% 44%, transparent 58%, rgba(0, 0, 0, 0.28) 100%);
 }
 
 .grain {
@@ -86,23 +83,33 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  opacity: 0.014;
+  opacity: 0.016;
   mix-blend-mode: overlay;
   background-size: 180px 180px;
 }
 
-/* ---------- 品牌：极简文字，不再是胶囊 ---------- */
+/* ---------- 品牌：左上角标识 ---------- */
 
 .brand {
   position: fixed;
   z-index: 4;
-  top: max(20px, env(safe-area-inset-top));
-  left: max(24px, env(safe-area-inset-left));
+  top: max(22px, env(safe-area-inset-top));
+  left: max(32px, env(safe-area-inset-left));
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 12px;
   pointer-events: none;
-  animation: fade-in 900ms var(--ease) both;
+  animation: fade-in 1000ms var(--ease) both;
+}
+
+.brand h1 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.06rem;
+  font-weight: 400;
+  letter-spacing: 0.34em;
+  line-height: 1;
 }
 
 .brand-mark {
@@ -111,17 +118,7 @@ body {
   font-family: var(--mono);
   font-size: 0.56rem;
   font-weight: 400;
-  letter-spacing: 0.22em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.brand h1 {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.2em;
   line-height: 1;
 }
 
@@ -130,53 +127,50 @@ body {
 .webgl-error {
   position: fixed;
   z-index: 5;
-  inset: 22% 14% auto;
+  inset: 24% 14% auto;
   text-align: center;
   color: var(--muted);
-  font-size: 0.84rem;
-  line-height: 1.6;
+  font-family: var(--serif);
+  font-size: 0.92rem;
+  line-height: 1.7;
+  letter-spacing: 0.06em;
 }
 
 .webgl-error p {
-  margin: 0.2rem 0;
+  margin: 0.15rem 0;
 }
 
 /* ==========================================================================
-   底部面板：全场唯一一块玻璃
+   仪表页脚：无背景、无边框，靠暗场托住
    ========================================================================== */
 
 .hud {
   position: fixed;
   z-index: 4;
-  left: 50%;
-  bottom: max(24px, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  width: min(44rem, calc(100vw - 40px));
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 24px 28px 22px;
-  border-radius: var(--r-panel);
-  background: var(--surface);
-  -webkit-backdrop-filter: blur(30px) saturate(170%);
-  backdrop-filter: blur(30px) saturate(170%);
-  box-shadow:
-    0 0 0 0.5px var(--hairline) inset,
-    0 12px 40px rgba(0, 0, 0, 0.34),
-    0 2px 8px rgba(0, 0, 0, 0.22);
-  animation: rise-in 780ms var(--ease) both;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  grid-template-areas: "caption readout";
+  align-items: end;
+  gap: 0 clamp(24px, 5vw, 72px);
+  padding: 0 max(32px, env(safe-area-inset-right)) calc(26px + env(safe-area-inset-bottom)) max(32px, env(safe-area-inset-left));
+  pointer-events: none;
+  animation: fade-in 900ms var(--ease) both;
 }
 
-@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
-  .hud {
-    background: rgba(16, 18, 24, 0.92);
-  }
+.hud > * {
+  pointer-events: auto;
 }
 
 .fallback {
-  margin: 0;
+  grid-column: 1 / -1;
+  margin: 0 0 14px;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
   line-height: 1.5;
 }
 
@@ -184,37 +178,43 @@ body {
   display: none !important;
 }
 
-/* ---------- 标题区 ---------- */
+/* ---------- 左：题面 ---------- */
 
 .caption {
-  width: 100%;
+  grid-area: caption;
+  min-width: 0;
+  padding-bottom: 4px;
 }
 
 .eyebrow {
-  margin: 0 0 6px;
-  color: var(--accent);
-  font-size: 0.64rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 400;
+  letter-spacing: 0.28em;
   line-height: 1;
 }
 
 .phase-name {
   margin: 0;
   color: var(--ink);
-  font-size: clamp(1.9rem, 3.4vw, 2.5rem);
-  font-weight: 600;
-  letter-spacing: -0.012em;
-  line-height: 1.1;
+  font-family: var(--serif);
+  font-size: clamp(2.1rem, 3.6vw, 2.9rem);
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  line-height: 1.06;
 }
 
 .poem {
-  margin: 10px 0 0;
-  max-width: 30rem;
-  color: var(--muted);
+  margin: 12px 0 0;
+  max-width: 26rem;
+  color: var(--ink-2);
   font-family: var(--serif);
-  font-size: 0.92rem;
-  line-height: 1.55;
+  font-size: 0.94rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.62;
 }
 
 .poem[hidden] {
@@ -224,106 +224,31 @@ body {
 .poem-author {
   color: var(--faint);
   font-family: var(--sans);
-  font-size: 0.76em;
-  letter-spacing: 0.04em;
+  font-size: 0.74em;
+  letter-spacing: 0.1em;
   white-space: nowrap;
 }
 
 .poem-author::before {
   content: "·";
-  margin: 0 0.4em 0 0.5em;
+  margin: 0 0.42em 0 0.56em;
+  letter-spacing: 0;
 }
 
 .poem-author:empty {
   display: none;
 }
 
-/* ---------- 数据区：无盒子，只有发丝线 ---------- */
-
-.metrics {
-  display: flex;
-  width: 100%;
-  margin: 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--hairline);
-}
-
-.metrics > div {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-right: 16px;
-}
-
-.metrics > div:last-child {
-  padding-right: 0;
-}
-
-.metrics dt {
-  margin: 0;
-  color: var(--faint);
-  font-size: 0.66rem;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  line-height: 1;
-}
-
-.metrics dd {
-  display: flex;
-  align-items: baseline;
-  gap: 0.24em;
-  height: 1.3rem;
-  margin: 0;
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 1.02rem;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-}
-
-.metrics dd .num,
-.metrics dd .unit {
-  font-variant-numeric: tabular-nums;
-  line-height: 1.3;
-}
-
-.metrics dd .unit {
-  color: var(--muted);
-  font-size: 0.72em;
-  font-weight: 400;
-}
-
-.metrics dd.is-rolling .num,
-.metrics dd.is-rolling .unit {
-  animation: roll-in var(--t-mid) var(--ease) both;
-}
-
-/* ---------- 文字切换淡入淡出 ---------- */
-
-.phase-name,
-.poem,
-.metrics dd {
-  transition: opacity var(--t-mid) var(--ease);
-}
-
-.is-dim {
-  opacity: 0.2;
-}
-
-/* ---------- 双月身份行 ---------- */
-
 .identity {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  margin: 10px 0 0;
+  gap: 4px 18px;
+  margin: 12px 0 0;
   color: var(--faint);
-  font-size: 0.72rem;
-  line-height: 1.4;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
 }
 
 .identity[hidden] {
@@ -338,86 +263,182 @@ body {
   color: var(--ink-2);
 }
 
+/* ---------- 右：读数与操作 ---------- */
+
+.readout {
+  grid-area: readout;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* 全站唯一一条发丝线 */
+.metrics {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.metrics > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  min-width: 0;
+}
+
+.metrics dt {
+  margin: 0;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.metrics dd {
+  display: flex;
+  align-items: baseline;
+  gap: 0.26em;
+  height: 1.32rem;
+  margin: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 1.02rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.32;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.metrics dd .num,
+.metrics dd .unit {
+  font-variant-numeric: tabular-nums;
+  line-height: 1.32;
+}
+
+.metrics dd .unit {
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 0.7em;
+  letter-spacing: 0.02em;
+}
+
+.metrics dd.is-rolling .num,
+.metrics dd.is-rolling .unit {
+  animation: roll-in var(--t-mid) var(--ease) both;
+}
+
+/* ---------- 文字切换 ---------- */
+
+.phase-name,
+.poem,
+.metrics dd {
+  transition: opacity var(--t-mid) var(--ease);
+}
+
+.is-dim {
+  opacity: 0.18;
+}
+
 /* ==========================================================================
-   控件区：压成一行
+   操作区：方角、发丝描边、透明底
    ========================================================================== */
 
 .dock {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  width: 100%;
+  flex-wrap: wrap;
 }
 
-/* ---------- 分段控件 ---------- */
+/* 统一控件外观 */
+.mode-switch button,
+.name-field,
+.person-pick,
+.cluster button,
+.date-field input {
+  appearance: none;
+  height: 32px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease),
+    opacity var(--t-fast) var(--ease);
+}
+
+.mode-switch button:hover,
+.person-pick:hover,
+.cluster button:hover,
+.date-field input:hover {
+  color: var(--ink);
+  border-color: rgba(240, 236, 227, 0.3);
+  background: var(--hover);
+}
+
+.mode-switch button:focus-visible,
+.name-field:focus-visible,
+.person-pick:focus-visible,
+.cluster button:focus-visible,
+.date-field input:focus-visible {
+  outline: 1px solid rgba(246, 243, 236, 0.7);
+  outline-offset: 2px;
+}
+
+button[hidden] {
+  display: none !important;
+}
+
+/* ---------- 单月 / 双月：并成一组 ---------- */
 
 .mode-switch {
-  position: relative;
-  display: flex;
-  flex: 0 0 auto;
-  height: 36px;
-  padding: 2px;
-  border-radius: 10px;
-  background: var(--surface-soft);
-  isolation: isolate;
+  display: inline-flex;
 }
 
-.seg-thumb {
-  position: absolute;
-  z-index: 0;
-  top: 2px;
-  bottom: 2px;
-  left: 2px;
-  width: calc(50% - 2px);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.14);
-  transition: transform var(--t-mid) var(--ease-spring);
-}
-
-.mode-switch:has(#mode-dual[aria-checked="true"]) .seg-thumb {
-  transform: translateX(100%);
-}
-
-.mode-switch button {
-  position: relative;
-  z-index: 1;
-  appearance: none;
-  margin: 0;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-family: var(--sans);
-  font-size: 0.76rem;
-  font-weight: 500;
-  padding: 0 16px;
-  height: 32px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: color var(--t-mid) var(--ease), transform var(--t-fast) var(--ease-spring);
+.mode-switch button + button {
+  border-left: 0;
 }
 
 .mode-switch button[aria-checked="true"] {
   color: var(--ink);
+  background: rgba(240, 236, 227, 0.1);
+  border-color: rgba(240, 236, 227, 0.26);
 }
 
-.mode-switch button:active {
-  transform: scale(0.97);
+.mode-switch button[aria-checked="true"] + button {
+  border-left: 0;
 }
 
-.mode-switch button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-/* ---------- 人物：不再是卡片，只是一段输入 ---------- */
+/* ---------- 姓名 + 该人的日期 ---------- */
 
 .people {
-  display: flex;
-  flex: 1 1 auto;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
 }
 
 .people[data-mode="single"] #person-1 {
@@ -425,194 +446,123 @@ body {
 }
 
 .person {
-  display: flex;
-  flex: 1 1 0;
+  display: inline-flex;
   align-items: center;
-  min-width: 0;
-  height: 36px;
   gap: 6px;
+  min-width: 0;
 }
 
 .name-field {
-  appearance: none;
-  flex: 0 1 7.5rem;
-  min-width: 0;
-  height: 36px;
-  margin: 0;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--surface-soft);
+  width: 5.6rem;
   color: var(--ink);
-  font-family: var(--sans);
-  font-size: 0.78rem;
   color-scheme: dark;
-  transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease-spring);
+  letter-spacing: 0.04em;
+  cursor: text;
 }
 
 .name-field::placeholder {
   color: var(--faint);
 }
 
-.name-field:hover {
-  background: rgba(255, 255, 255, 0.085);
-}
-
-.name-field:active {
-  transform: scale(0.98);
-}
-
-/* 双月时用一条发丝线区分两个人，而不是加框 */
-.people[data-mode="dual"] .person + .person {
-  border-left: 1px solid var(--hairline);
-  padding-left: 8px;
-}
-
 .person-pick {
-  appearance: none;
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  height: 36px;
-  margin: 0;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--muted);
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease-spring);
-}
-
-.person-pick:hover {
-  color: var(--ink);
-  background: var(--surface-soft);
-}
-
-.person-pick:active {
-  transform: scale(0.97);
+  letter-spacing: 0.02em;
+  color: var(--muted);
 }
 
 .person.is-active .person-pick {
-  color: var(--accent);
+  color: var(--ink);
+  border-color: rgba(240, 236, 227, 0.3);
 }
 
-.person-pick:focus-visible,
-.name-field:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+.person-when {
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---------- 日期行 ---------- */
+/* ---------- 日期导航 ---------- */
 
 .cluster {
-  display: flex;
-  flex: 0 0 auto;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
 .control-nav,
 .control-extra {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
 }
 
-.cluster button,
-.date-field input {
-  appearance: none;
-  height: 36px;
-  margin: 0;
-  border: 0;
-  border-radius: 10px;
-  background: var(--surface-soft);
-  color: var(--ink-2);
+.glyph {
+  width: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--sans);
-  font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  padding: 0 13px;
-  white-space: nowrap;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition:
-    color var(--t-fast) var(--ease),
-    background var(--t-fast) var(--ease),
-    transform var(--t-fast) var(--ease-spring),
-    opacity var(--t-fast) var(--ease);
+  font-size: 1rem;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--muted);
 }
 
-.cluster button:hover,
-.date-field input:hover {
-  background: rgba(255, 255, 255, 0.09);
+.glyph:hover {
   color: var(--ink);
-}
-
-.cluster button:active,
-.date-field input:active {
-  transform: scale(0.97);
-}
-
-.cluster button:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.cluster button:disabled:hover {
-  background: var(--surface-soft);
-  color: var(--ink-2);
-}
-
-.cluster button:disabled:active {
-  transform: none;
-}
-
-button[hidden] {
-  display: none !important;
-}
-
-/* 前一天 / 后一天 收窄成图标位宽度 */
-#prev,
-#next {
-  padding: 0 12px;
-  font-size: 0.74rem;
 }
 
 .date-field {
-  display: flex;
-  flex: 0 0 auto;
+  display: inline-flex;
 }
 
 .date-field input {
-  width: 8.6rem;
+  width: 8.2rem;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
   color: var(--ink);
   color-scheme: dark;
   font-family: var(--mono);
-  font-size: 0.8rem;
-  font-weight: 400;
+  font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
-  padding: 0 12px;
-  cursor: pointer;
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 0 8px;
+}
+
+.date-field input:hover {
+  border-left: 0;
+  border-right: 0;
 }
 
 .date-field input::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  opacity: 0.5;
+  opacity: 0.42;
   filter: brightness(0) invert(1);
   transition: opacity var(--t-fast) var(--ease);
 }
 
 .date-field input:hover::-webkit-calendar-picker-indicator {
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
-/* 今天 / 分享：与其它控件同权重，不做主按钮 */
+.cluster button:disabled {
+  opacity: 0.26;
+  cursor: default;
+}
+
+.cluster button:disabled:hover {
+  color: var(--muted);
+  border-color: var(--hairline);
+  background: transparent;
+}
+
+#today,
+#share {
+  color: var(--ink-2);
+}
+
 #share {
   color: var(--ink);
 }
@@ -620,12 +570,6 @@ button[hidden] {
 #share:disabled {
   color: var(--muted);
   opacity: 0.5;
-}
-
-.cluster button:focus-visible,
-.date-field input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
 }
 
 /* ---------- 无障碍 ---------- */
@@ -644,17 +588,6 @@ button[hidden] {
 
 /* ---------- 关键帧 ---------- */
 
-@keyframes rise-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -672,86 +605,50 @@ button[hidden] {
 }
 
 /* ==========================================================================
-   响应式
+   窄屏：改为纵向堆叠，界面自身带一层暗底保证可读
    ========================================================================== */
 
-@media (max-width: 720px) {
-  .brand {
-    top: max(14px, env(safe-area-inset-top));
-    left: max(16px, env(safe-area-inset-left));
-    gap: 8px;
-  }
-
-  .brand-mark {
-    font-size: 0.5rem;
-    letter-spacing: 0.16em;
-  }
-
-  .brand h1 {
-    font-size: 0.74rem;
-    letter-spacing: 0.16em;
-  }
-
+@media (max-width: 860px) {
   .hud {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    transform: none;
-    width: 100%;
-    gap: 16px;
-    padding: 18px 18px calc(16px + env(safe-area-inset-bottom));
-    border-radius: 20px 20px 0 0;
-    box-shadow:
-      0 0 0 0.5px var(--hairline) inset,
-      0 -8px 32px rgba(0, 0, 0, 0.36);
-    animation: sheet-in 700ms var(--ease) both;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "caption"
+      "readout";
+    align-items: stretch;
+    gap: 18px;
+    padding: 20px 20px calc(18px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, rgba(4, 5, 8, 0.88) 0%, rgba(4, 5, 8, 0.62) 62%, transparent 100%);
   }
 
-  .phase-name {
-    font-size: 1.6rem;
+  .caption {
+    padding-bottom: 0;
   }
 
-  .poem {
-    margin-top: 8px;
-    max-width: none;
-    font-size: 0.82rem;
+  .readout {
+    align-items: stretch;
+    gap: 14px;
   }
 
   .metrics {
-    padding-top: 14px;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
   }
 
   .metrics > div {
-    gap: 5px;
-    padding-right: 10px;
-  }
-
-  .metrics dt {
-    font-size: 0.62rem;
+    align-items: flex-start;
+    flex: 1;
+    min-width: 0;
   }
 
   .metrics dd {
     height: 1.2rem;
-    font-size: 0.94rem;
+    font-size: 0.92rem;
   }
 
-  .identity {
-    margin-top: 8px;
-    font-size: 0.68rem;
-    gap: 3px 12px;
-  }
-
-  /* 窄屏：分段控件独占一行，其余控件排第二行 */
   .dock {
+    justify-content: flex-start;
     gap: 8px;
-  }
-
-  .mode-switch {
-    flex: 1 1 100%;
-  }
-
-  .mode-switch button {
-    flex: 1;
   }
 
   .people {
@@ -761,45 +658,27 @@ button[hidden] {
     gap: 8px;
   }
 
-  .people[data-mode="dual"] .person + .person {
-    border-left: 0;
-    padding-left: 0;
-  }
-
   .person {
-    height: 42px;
-    gap: 8px;
+    width: 100%;
   }
 
-  .name-field,
-  .person-pick {
-    height: 42px;
-    font-size: 0.82rem;
-  }
-
+  .people[data-mode="single"] .person .name-field,
   .name-field {
     flex: 1 1 auto;
+    width: auto;
+  }
+
+  .person-pick {
+    flex: 0 0 auto;
   }
 
   .cluster {
     flex: 1 1 100%;
-    gap: 6px;
+    justify-content: space-between;
   }
 
   .control-nav {
     flex: 1 1 auto;
-    gap: 6px;
-  }
-
-  .control-extra {
-    flex: 0 0 auto;
-    gap: 6px;
-  }
-
-  .cluster button,
-  .date-field input {
-    height: 42px;
-    font-size: 0.8rem;
   }
 
   .date-field {
@@ -809,16 +688,69 @@ button[hidden] {
   .date-field input {
     width: 100%;
   }
+
+  .control-extra {
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .mode-switch button,
+  .name-field,
+  .person-pick,
+  .cluster button,
+  .date-field input,
+  .glyph {
+    height: 40px;
+  }
+
+  .glyph {
+    width: 40px;
+  }
+
+  .control-extra button {
+    padding: 0 16px;
+  }
 }
 
-@keyframes sheet-in {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
+@media (max-width: 720px) {
+  .brand {
+    top: max(14px, env(safe-area-inset-top));
+    left: max(18px, env(safe-area-inset-left));
+    gap: 9px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  .brand h1 {
+    font-size: 0.9rem;
+    letter-spacing: 0.26em;
+  }
+
+  .brand-mark {
+    font-size: 0.5rem;
+    letter-spacing: 0.14em;
+  }
+
+  .phase-name {
+    font-size: 1.68rem;
+    letter-spacing: 0.1em;
+  }
+
+  .eyebrow {
+    margin-bottom: 7px;
+    font-size: 0.54rem;
+    letter-spacing: 0.22em;
+  }
+
+  .poem {
+    margin-top: 9px;
+    max-width: none;
+    font-size: 0.84rem;
+    line-height: 1.56;
+  }
+
+  .identity {
+    margin-top: 9px;
+    font-size: 0.64rem;
+    gap: 3px 14px;
   }
 }
 
@@ -830,95 +762,75 @@ button[hidden] {
   }
 
   .brand h1 {
-    font-size: 0.72rem;
+    font-size: 0.86rem;
+    letter-spacing: 0.22em;
   }
 
   .hud {
-    left: max(14px, env(safe-area-inset-left));
-    right: max(14px, env(safe-area-inset-right));
-    bottom: max(10px, env(safe-area-inset-bottom));
-    transform: none;
-    width: auto;
-    display: grid;
-    grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
-    grid-template-areas: "caption metrics dock";
-    align-items: center;
-    column-gap: 22px;
-    row-gap: 6px;
-    padding: 12px 18px;
-    border-radius: 18px;
-  }
-
-  .fallback {
-    grid-column: 1 / -1;
-  }
-
-  .caption {
-    grid-area: caption;
-    width: auto;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    grid-template-areas: "caption readout";
+    align-items: end;
+    gap: 0 28px;
+    padding: 0 20px calc(14px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, rgba(4, 5, 8, 0.8) 0%, transparent 100%);
   }
 
   .phase-name {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
+    letter-spacing: 0.1em;
   }
 
   .poem {
-    max-width: 11rem;
-    margin-top: 4px;
-    font-size: 0.64rem;
-    line-height: 1.4;
-  }
-
-  .metrics {
-    grid-area: metrics;
-    width: 100%;
-    padding-top: 0;
-    border-top: 0;
-  }
-
-  .metrics > div {
-    gap: 4px;
-    padding-right: 14px;
-  }
-
-  .metrics dd {
-    height: 1rem;
-    font-size: 0.78rem;
+    max-width: 12rem;
+    margin-top: 6px;
+    font-size: 0.66rem;
+    line-height: 1.45;
   }
 
   .identity {
     display: none;
   }
 
-  .dock {
-    grid-area: dock;
-    width: auto;
-    max-width: 26rem;
-    flex-wrap: nowrap;
-    gap: 6px;
+  .metrics {
+    gap: 18px;
+    padding-bottom: 8px;
   }
 
-  .mode-switch {
-    height: 32px;
+  .metrics dt {
+    font-size: 0.52rem;
+    letter-spacing: 0.1em;
   }
 
-  .mode-switch button {
-    height: 28px;
-    padding: 0 12px;
-    font-size: 0.7rem;
+  .metrics dd {
+    height: 1rem;
+    font-size: 0.8rem;
   }
 
-  .person,
+  .readout {
+    gap: 10px;
+  }
+
+  .mode-switch button,
   .name-field,
   .person-pick,
   .cluster button,
-  .date-field input {
-    height: 32px;
-    font-size: 0.72rem;
+  .date-field input,
+  .glyph {
+    height: 28px;
+    font-size: 0.68rem;
+  }
+
+  .glyph {
+    width: 28px;
+    font-size: 0.9rem;
+  }
+
+  .name-field {
+    width: 4.6rem;
   }
 
   .date-field input {
-    width: 7.6rem;
+    width: 7.2rem;
   }
 }
 
@@ -934,10 +846,9 @@ button[hidden] {
   .metrics dd,
   .identity,
   .identity span,
-  .seg-thumb,
   .mode-switch button,
-  .person-pick,
   .name-field,
+  .person-pick,
   .cluster button,
   .date-field input,
   .date-field input::-webkit-calendar-picker-indicator {
@@ -948,14 +859,6 @@ button[hidden] {
   .metrics dd.is-rolling .num,
   .metrics dd.is-rolling .unit {
     animation: none !important;
-  }
-
-  .mode-switch button:active,
-  .person-pick:active,
-  .name-field:active,
-  .cluster button:active,
-  .date-field input:active {
-    transform: none;
   }
 
   .is-dim {

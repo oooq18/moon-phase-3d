@@ -19,8 +19,8 @@
     <div class="grain" aria-hidden="true"></div>
 
     <header class="brand">
-      <p class="brand-mark">观测台</p>
       <h1>观月</h1>
+      <p class="brand-mark">月相观测台</p>
     </header>
 
     <div id="webgl-error" class="webgl-error" hidden>
@@ -43,55 +43,58 @@
         </p>
       </div>
 
-      <dl class="metrics">
-        <div>
-          <dt>月龄</dt>
-          <dd id="metric-age">—</dd>
-        </div>
-        <div>
-          <dt>亮面比例</dt>
-          <dd id="metric-illum">—</dd>
-        </div>
-        <div>
-          <dt>地月距离</dt>
-          <dd id="metric-dist">—</dd>
-        </div>
-      </dl>
+      <div class="readout">
+        <dl class="metrics">
+          <div>
+            <dt>月龄</dt>
+            <dd id="metric-age">—</dd>
+          </div>
+          <div>
+            <dt>亮面</dt>
+            <dd id="metric-illum">—</dd>
+          </div>
+          <div>
+            <dt>地月距离</dt>
+            <dd id="metric-dist">—</dd>
+          </div>
+        </dl>
 
-      <div class="dock">
-        <div class="mode-switch" role="radiogroup" aria-label="月数">
-          <button type="button" id="mode-single" role="radio" aria-checked="true">单月</button>
-          <button type="button" id="mode-dual" role="radio" aria-checked="false">双月</button>
-        </div>
-        <div class="people" id="people" data-mode="single">
-          <div class="person is-active" data-index="0">
-            <input id="name-0" class="name-field" type="text" maxlength="16" placeholder="姓名" autocomplete="off" enterkeyhint="done" aria-label="左侧姓名，可不填" />
-            <button type="button" class="person-pick" id="pick-0" aria-pressed="true">
-              <span class="person-when" id="when-0"></span>
-            </button>
+        <div class="dock">
+          <div class="mode-switch" role="radiogroup" aria-label="月数">
+            <button type="button" id="mode-single" role="radio" aria-checked="true">单月</button>
+            <button type="button" id="mode-dual" role="radio" aria-checked="false">双月</button>
           </div>
-          <div class="person" data-index="1" id="person-1">
-            <input id="name-1" class="name-field" type="text" maxlength="16" placeholder="姓名" autocomplete="off" enterkeyhint="done" aria-label="右侧姓名，可不填" />
-            <button type="button" class="person-pick" id="pick-1" aria-pressed="false">
-              <span class="person-side">右</span>
-              <span class="person-when" id="when-1"></span>
-            </button>
+
+          <div class="people" id="people" data-mode="single">
+            <div class="person is-active" data-index="0">
+              <input id="name-0" class="name-field" type="text" maxlength="16" placeholder="姓名" autocomplete="off" enterkeyhint="done" aria-label="左侧姓名，可不填" />
+              <button type="button" class="person-pick" id="pick-0" aria-pressed="true">
+                <span class="person-when" id="when-0"></span>
+              </button>
+            </div>
+            <div class="person" data-index="1" id="person-1">
+              <input id="name-1" class="name-field" type="text" maxlength="16" placeholder="姓名" autocomplete="off" enterkeyhint="done" aria-label="右侧姓名，可不填" />
+              <button type="button" class="person-pick" id="pick-1" aria-pressed="false">
+                <span class="person-when" id="when-1"></span>
+              </button>
+            </div>
+          </div>
+
+          <div class="cluster" role="group" aria-label="日期">
+            <div class="control-nav">
+              <button type="button" id="prev" class="glyph" aria-label="前一天">‹</button>
+              <label class="date-field">
+                <span class="sr-only">选择日期，按北京时间解析，从 1000年1月1日到 9999年12月31日</span>
+                <input id="date" type="date" min="1000-01-01" max="9999-12-31" autocomplete="off" />
+              </label>
+              <button type="button" id="next" class="glyph" aria-label="后一天">›</button>
+            </div>
+            <div class="control-extra">
+              <button type="button" id="today" hidden>今天</button>
+              <button type="button" id="share">分享</button>
+            </div>
           </div>
         </div>
-      <div class="cluster" role="group" aria-label="日期">
-        <div class="control-nav" id="control-nav">
-          <button type="button" id="prev">前一天</button>
-          <label class="date-field">
-            <span class="sr-only">选择日期，按北京时间解析，从 1000年1月1日到 9999年12月31日</span>
-            <input id="date" type="date" min="1000-01-01" max="9999-12-31" autocomplete="off" />
-          </label>
-          <button type="button" id="next">后一天</button>
-        </div>
-        <div class="control-extra">
-          <button type="button" id="today" hidden>今天</button>
-          <button type="button" id="share">分享</button>
-        </div>
-      </div>
       </div>
     </section>
 
