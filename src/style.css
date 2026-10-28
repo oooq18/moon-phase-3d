@@ -1,16 +1,72 @@
+/* ==========================================================================
+   观月 · visionOS 通透玻璃设计体系
+   --------------------------------------------------------------------------
+   设计取向：面板悬浮为独立玻璃浮层，强调景深、柔光投影与层次分离；
+   控件更轻、留白更大、动效更缓。
+   全部动效走 CSS transition / animation，并在 prefers-reduced-motion 下降级。
+   ========================================================================== */
+
 :root {
   color-scheme: dark;
-  --bg: #000000;
-  --ink: rgba(236, 240, 246, 0.92);
-  --whisper: rgba(232, 236, 243, 0.8);
-  --muted: rgba(232, 236, 243, 0.48);
-  --faint: rgba(232, 236, 243, 0.36);
-  --line: rgba(186, 198, 214, 0.18);
-  --line-strong: rgba(186, 198, 214, 0.38);
-  --surface: rgba(8, 12, 18, 0.42);
-  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", "PMingLiU", "SimSun", serif;
-  --sans: "Source Han Sans SC", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans", "Segoe UI", sans-serif;
-  --mono: "SFMono-Regular", "Cascadia Mono", "Source Code Pro", ui-monospace, "PingFang SC", "Microsoft YaHei", monospace;
+
+  /* ---- 墨色阶（Apple 中性灰，冷调） ---- */
+  --ink: rgba(245, 247, 250, 0.96);
+  --ink-2: rgba(235, 239, 245, 0.78);
+  --whisper: rgba(232, 237, 244, 0.62);
+  --muted: rgba(228, 234, 242, 0.44);
+  --faint: rgba(226, 232, 240, 0.30);
+
+  /* ---- 玻璃材质 ---- */
+  --glass-1: rgba(28, 32, 42, 0.42);   /* 主浮层 */
+  --glass-2: rgba(255, 255, 255, 0.075); /* 浮层内控件 */
+  --glass-3: rgba(255, 255, 255, 0.045); /* 更轻的控件 */
+  --glass-hi: rgba(255, 255, 255, 0.16); /* 顶部高光描边 */
+  --glass-lo: rgba(255, 255, 255, 0.05);
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.20);
+
+  /* ---- 强调色（Apple systemBlue 深色模式） ---- */
+  --accent: rgba(100, 168, 255, 0.92);
+  --accent-soft: rgba(100, 168, 255, 0.20);
+
+  /* ---- 景深：柔光投影（多层叠加制造空间分离） ---- */
+  --depth-float:
+    0 0 0 0.5px rgba(255, 255, 255, 0.10) inset,
+    0 1px 0 0 rgba(255, 255, 255, 0.14) inset,
+    0 -1px 0 0 rgba(0, 0, 0, 0.24) inset,
+    0 2px 6px rgba(0, 0, 0, 0.20),
+    0 12px 28px rgba(0, 0, 0, 0.28),
+    0 32px 64px rgba(0, 0, 0, 0.36);
+  --depth-chip:
+    0 0 0 0.5px rgba(255, 255, 255, 0.07) inset,
+    0 1px 2px rgba(0, 0, 0, 0.22),
+    0 4px 12px rgba(0, 0, 0, 0.18);
+
+  /* ---- 圆角（Apple 连续圆角比例） ---- */
+  --r-float: 30px;
+  --r-sheet: 26px;
+  --r-chip: 14px;
+  --r-pill: 999px;
+
+  /* ---- 缓动：Apple 标准曲线（快出慢入） ---- */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --t-fast: 240ms;
+  --t-mid: 420ms;
+  --t-slow: 720ms;
+
+  /* ---- 字栈：SF Pro / 苹方优先 ---- */
+  --sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Helvetica Neue", "PingFang SC", "Hiragino Sans GB",
+    "Source Han Sans SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --serif:
+    "New York", "Iowan Old Style", "Palatino Linotype", Palatino,
+    "Songti SC", "Source Han Serif SC", "Noto Serif SC", "STSong", serif;
+  --mono:
+    ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono",
+    "Source Code Pro", "PingFang SC", "Microsoft YaHei", monospace;
 }
 
 * {
@@ -22,16 +78,20 @@ body {
   margin: 0;
   height: 100%;
   background: #000000;
-  color: var(--whisper);
+  color: var(--ink-2);
   font-family: var(--sans);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: rgba(186, 198, 214, 0.22);
-  color: #f4f7fb;
+  background: var(--accent-soft);
+  color: #ffffff;
 }
+
+/* ---------- 三维画布 ---------- */
 
 #scene {
   position: fixed;
@@ -43,12 +103,15 @@ body {
   z-index: 0;
 }
 
+/* 暗角：把视线往中央月球收，同时给浮层留出台阶 */
 .vignette {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  background: radial-gradient(ellipse at 50% 42%, transparent 62%, rgba(0, 0, 0, 0.05) 82%, rgba(0, 0, 0, 0.22) 100%);
+  background:
+    radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.10) 78%, rgba(0, 0, 0, 0.42) 100%),
+    linear-gradient(to top, rgba(0, 0, 0, 0.52) 0%, rgba(0, 0, 0, 0.16) 26%, transparent 52%);
 }
 
 .grain {
@@ -56,69 +119,115 @@ body {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  opacity: 0.016;
+  opacity: 0.018;
   mix-blend-mode: overlay;
   background-size: 180px 180px;
 }
 
+/* ---------- 品牌：独立玻璃胶囊，悬浮左上 ---------- */
+
 .brand {
   position: fixed;
-  z-index: 3;
-  top: max(18px, env(safe-area-inset-top));
-  left: max(32px, env(safe-area-inset-left));
+  z-index: 5;
+  top: max(22px, env(safe-area-inset-top));
+  left: max(28px, env(safe-area-inset-left));
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 20px 12px;
+  border-radius: var(--r-chip);
+  background: var(--glass-1);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  box-shadow: var(--depth-chip);
   pointer-events: none;
-  animation: fade-in 800ms ease both;
+  animation: float-in var(--t-slow) var(--ease-out) both;
+}
+
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .brand,
+  .hud,
+  .mode-switch,
+  .person,
+  .cluster,
+  .control-extra > button {
+    background: rgba(18, 21, 28, 0.86);
+  }
 }
 
 .brand-mark {
   margin: 0;
   color: var(--faint);
   font-family: var(--mono);
-  font-size: 0.58rem;
-  font-weight: 400;
-  letter-spacing: 0.34em;
+  font-size: 0.55rem;
+  font-weight: 500;
+  letter-spacing: 0.30em;
   line-height: 1;
   text-transform: uppercase;
 }
 
 .brand h1 {
-  margin: 8px 0 0;
-  color: rgba(232, 236, 243, 0.62);
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: 0.78rem;
-  letter-spacing: 0.48em;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.30em;
   line-height: 1;
+  text-indent: 0.30em; /* 视觉居中补偿尾随字距 */
 }
+
+/* ---------- WebGL 失败提示 ---------- */
 
 .webgl-error {
   position: fixed;
-  z-index: 3;
-  inset: 22% 14% auto;
+  z-index: 6;
+  inset: 20% 12% auto;
+  padding: 18px 22px;
   text-align: center;
-  color: var(--muted);
-  letter-spacing: 0.08em;
+  color: var(--whisper);
+  letter-spacing: 0.04em;
+  border-radius: var(--r-chip);
+  background: var(--glass-1);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: var(--depth-chip);
 }
 
 .webgl-error p {
-  margin: 0.3rem 0;
+  margin: 0.28rem 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
 }
+
+.webgl-error p + p {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* ==========================================================================
+   主浮层：悬浮玻璃仪表
+   ========================================================================== */
 
 .hud {
   position: fixed;
-  z-index: 4;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  z-index: 5;
+  left: 50%;
+  right: auto;
+  bottom: max(26px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(46rem, calc(100vw - 48px));
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 0 max(32px, env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) max(32px, env(safe-area-inset-left));
-  background: none;
-  border: 0;
-  pointer-events: none;
-  animation: fade-in 700ms ease both;
+  gap: 18px;
+  padding: 26px 30px 24px;
+  border-radius: var(--r-float);
+  background: var(--glass-1);
+  -webkit-backdrop-filter: blur(38px) saturate(190%);
+  backdrop-filter: blur(38px) saturate(190%);
+  box-shadow: var(--depth-float);
+  pointer-events: auto;
+  animation: rise-in 900ms var(--ease-out) both;
 }
 
 .hud > * {
@@ -126,55 +235,60 @@ body {
 }
 
 .fallback {
-  width: min(40rem, 100%);
+  width: 100%;
   margin: 0;
-  color: var(--muted);
+  padding: 9px 14px;
+  color: var(--whisper);
   font-family: var(--mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.03em;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
   line-height: 1.45;
+  border-radius: 10px;
+  background: rgba(255, 214, 130, 0.10);
+  box-shadow: 0 0 0 0.5px rgba(255, 214, 130, 0.22) inset;
 }
 
 .fallback[hidden] {
   display: none !important;
 }
 
+/* ---------- 标题区 ---------- */
+
 .caption {
   align-self: stretch;
   width: 100%;
-  text-shadow: 0 1px 16px rgba(5, 7, 13, 0.72);
 }
 
 .eyebrow {
-  margin: 0 0 10px;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  font-weight: 400;
-  letter-spacing: 0.32em;
+  margin: 0 0 9px;
+  color: var(--accent);
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
   line-height: 1;
+  text-transform: uppercase;
 }
 
 .phase-name {
   margin: 0;
   color: var(--ink);
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(2.75rem, 4.8vw, 3.75rem);
-  letter-spacing: 0.16em;
-  line-height: 0.95;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: clamp(2.5rem, 4.6vw, 3.5rem);
+  letter-spacing: -0.015em;
+  line-height: 1.02;
 }
 
 .poem {
-  margin: 12px 0 0;
-  max-width: 34rem;
-  color: rgba(236, 240, 246, 0.74);
+  margin: 14px 0 0;
+  max-width: 32rem;
+  color: var(--whisper);
   font-family: var(--serif);
-  font-size: 0.95rem;
+  font-size: 0.98rem;
   font-weight: 400;
-  letter-spacing: 0.03em;
-  line-height: 1.45;
-  text-shadow: 0 1px 16px rgba(5, 7, 13, 0.72);
+  letter-spacing: 0.02em;
+  line-height: 1.55;
 }
 
 .poem[hidden] {
@@ -184,14 +298,15 @@ body {
 .poem-author {
   color: var(--faint);
   font-family: var(--sans);
-  font-size: 0.72em;
-  letter-spacing: 0.14em;
+  font-size: 0.74em;
+  font-weight: 400;
+  letter-spacing: 0.08em;
   white-space: nowrap;
 }
 
 .poem-author::before {
   content: "·";
-  margin: 0 0.4em 0 0.55em;
+  margin: 0 0.42em 0 0.56em;
   letter-spacing: 0;
 }
 
@@ -199,14 +314,20 @@ body {
   display: none;
 }
 
+/* ---------- 数据区：浮层内的次级层次 ---------- */
+
 .metrics {
-  width: min(40rem, 100%);
+  width: 100%;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
   margin: 0;
-  padding: 12px 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  padding: 15px 4px;
+  border-radius: var(--r-chip);
+  background: var(--glass-3);
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.06) inset,
+    0 1px 2px rgba(0, 0, 0, 0.14);
 }
 
 .metrics > div {
@@ -214,142 +335,260 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 0 16px;
+  gap: 7px;
+  padding: 0 18px;
+}
+
+.metrics > div:first-child {
+  padding-left: 16px;
+}
+
+.metrics > div:last-child {
+  padding-right: 16px;
 }
 
 .metrics > div + div::before {
   content: "";
   position: absolute;
   left: 0;
-  top: 2px;
-  bottom: 2px;
+  top: 1px;
+  bottom: 1px;
   width: 1px;
-  background: var(--line);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.12) 26%,
+    rgba(255, 255, 255, 0.12) 74%,
+    transparent
+  );
 }
 
 .metrics dt {
   margin: 0;
   color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  font-weight: 400;
-  letter-spacing: 0.16em;
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.10em;
   line-height: 1;
 }
 
 .metrics dd {
   display: flex;
   align-items: baseline;
-  gap: 0.28em;
-  height: 1.15rem;
-  margin: 8px 0 0;
+  gap: 0.26em;
+  height: 1.35rem;
+  margin: 0;
+  overflow: hidden;
   color: var(--ink);
-  font-family: var(--mono);
-  font-size: 0.98rem;
-  font-weight: 400;
+  font-family: var(--sans);
+  font-size: 1.06rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
-  letter-spacing: 0;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
 }
 
 .metrics dd .num,
 .metrics dd .unit {
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  line-height: 1.35;
+  will-change: transform, opacity;
 }
 
 .metrics dd .unit {
   color: var(--whisper);
-  font-family: var(--sans);
-  font-size: 0.74em;
-  letter-spacing: 0.02em;
+  font-size: 0.70em;
+  font-weight: 400;
+  letter-spacing: 0;
 }
+
+/* 数值滚动过渡 */
+.metrics dd.is-rolling .num,
+.metrics dd.is-rolling .unit {
+  animation: roll-in var(--t-mid) var(--ease-out) both;
+}
+
+/* ---------- 淡入淡出（文字切换） ---------- */
 
 .phase-name,
 .poem,
 .metrics dd {
-  transition: opacity 480ms ease;
+  transition: opacity var(--t-mid) var(--ease);
 }
 
 .is-dim {
-  opacity: 0.28;
+  opacity: 0.22;
 }
+
+/* ---------- 双月身份行 ---------- */
 
 .identity {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
-  margin: 10px 0 0;
+  gap: 7px 18px;
+  margin: 2px 0 0;
   color: var(--muted);
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  line-height: 1.4;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+  transition: opacity var(--t-mid) var(--ease);
 }
 
 .identity[hidden] {
   display: none !important;
 }
 
+.identity span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: color var(--t-fast) var(--ease);
+}
+
+.identity span::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: currentColor;
+  opacity: 0.42;
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease-spring);
+}
+
 .identity span.is-active {
   color: var(--ink);
 }
 
+.identity span.is-active::before {
+  opacity: 1;
+  background: var(--accent);
+  transform: scale(1.24);
+}
+
+/* ==========================================================================
+   控件区
+   ========================================================================== */
+
 .dock {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: min(40rem, 100%);
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
 }
 
+/* ---------- 分段控件：滑块位移 ---------- */
+
 .mode-switch {
-  display: inline-flex;
-  height: 32px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  overflow: hidden;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 36px;
+  padding: 2.5px;
+  border-radius: var(--r-pill);
+  background: var(--glass-2);
+  box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.07) inset;
+  isolation: isolate;
+}
+
+.seg-thumb {
+  position: absolute;
+  z-index: 0;
+  top: 2.5px;
+  bottom: 2.5px;
+  left: 2.5px;
+  width: calc(50% - 2.5px);
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.22) inset,
+    0 1px 3px rgba(0, 0, 0, 0.28),
+    0 4px 10px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: transform var(--t-mid) var(--ease-spring);
+  will-change: transform;
+}
+
+.mode-switch:has(#mode-dual[aria-checked="true"]) .seg-thumb {
+  transform: translateX(100%);
 }
 
 .mode-switch button {
+  position: relative;
+  z-index: 1;
   appearance: none;
   margin: 0;
   border: 0;
   background: transparent;
-  color: rgba(232, 236, 243, 0.62);
+  color: var(--whisper);
   font-family: var(--sans);
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
-  padding: 0 18px;
-  height: 32px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  padding: 0;
+  height: 100%;
   cursor: pointer;
-}
-
-.mode-switch button + button {
-  box-shadow: inset 1px 0 0 var(--line);
+  border-radius: var(--r-pill);
+  transition: color var(--t-mid) var(--ease), transform var(--t-fast) var(--ease-spring);
 }
 
 .mode-switch button[aria-checked="true"] {
   color: var(--ink);
-  background: rgba(232, 236, 243, 0.08);
+  font-weight: 600;
+}
+
+.mode-switch button:hover {
+  color: var(--ink);
+}
+
+.mode-switch button:active {
+  transform: scale(0.97);
 }
 
 .mode-switch button:focus-visible {
-  outline: 1px solid rgba(186, 198, 214, 0.8);
-  outline-offset: -2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
+
+/* ---------- 人物卡 ---------- */
 
 .people {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 8px;
-  width: min(40rem, 100%);
-  justify-content: center;
+  width: 100%;
 }
 
-.people[data-mode="single"] {
-  width: auto;
+.people[data-mode="dual"] {
+  grid-template-columns: 1fr 1fr;
+}
+
+.person {
+  display: flex;
+  min-width: 0;
+  height: 44px;
+  padding: 3px;
+  border-radius: var(--r-chip);
+  background: var(--glass-2);
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.06) inset,
+    0 1px 2px rgba(0, 0, 0, 0.16);
+  transition:
+    box-shadow var(--t-mid) var(--ease),
+    background var(--t-mid) var(--ease),
+    transform var(--t-fast) var(--ease-spring);
+}
+
+.person.is-active {
+  background: var(--glass-2);
+  box-shadow:
+    0 0 0 1px var(--accent) inset,
+    0 0 0 3px var(--accent-soft),
+    0 2px 8px rgba(0, 0, 0, 0.22);
 }
 
 .people[data-mode="single"] #person-1,
@@ -357,24 +596,8 @@ body {
   display: none;
 }
 
-.person {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  height: 36px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  overflow: hidden;
-}
-
 .people[data-mode="single"] .person {
-  flex: 0 0 auto;
-  width: 9rem;
-}
-
-.person.is-active {
-  border-color: var(--line-strong);
+  justify-content: center;
 }
 
 .name-field,
@@ -385,25 +608,29 @@ body {
   background: transparent;
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  height: 36px;
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  height: 38px;
   min-width: 0;
+  border-radius: 11px;
+  transition: color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease-spring);
 }
 
 .name-field {
-  width: 5.2rem;
-  padding: 0 10px;
+  width: 6.4rem;
+  padding: 0 12px;
   color-scheme: dark;
-}
-
-.people[data-mode="single"] .name-field {
-  width: 100%;
-  text-align: center;
 }
 
 .name-field::placeholder {
   color: var(--faint);
+}
+
+.people[data-mode="single"] .name-field {
+  width: 100%;
+  max-width: 13rem;
+  text-align: center;
 }
 
 .person-pick {
@@ -411,11 +638,20 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 0 10px 0 0;
+  gap: 9px;
+  padding: 0 13px;
   cursor: pointer;
-  color: rgba(232, 236, 243, 0.72);
-  box-shadow: inset 1px 0 0 var(--line);
+  color: var(--whisper);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+.person-pick:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+}
+
+.person-pick:active {
+  transform: scale(0.97);
 }
 
 .person.is-active .person-pick {
@@ -425,31 +661,36 @@ body {
 .person-side {
   color: var(--faint);
   font-size: 0.62rem;
-  letter-spacing: 0.16em;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+}
+
+.person.is-active .person-side {
+  color: var(--accent);
 }
 
 .person-when {
   font-family: var(--mono);
+  font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
 }
 
 .person-pick:focus-visible,
 .name-field:focus-visible {
-  outline: 1px solid rgba(186, 198, 214, 0.8);
-  outline-offset: -2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
   position: relative;
   z-index: 1;
 }
 
+/* ---------- 日期快门 ---------- */
+
 .cluster {
-  display: inline-flex;
-  align-items: stretch;
-  height: 36px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  width: 100%;
 }
 
 .control-nav,
@@ -457,25 +698,46 @@ body {
   display: contents;
 }
 
+.control-nav {
+  display: flex;
+  align-items: stretch;
+  height: 44px;
+  padding: 3px;
+  border-radius: var(--r-chip);
+  background: var(--glass-2);
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.06) inset,
+    0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+.control-nav > * {
+  height: 38px;
+}
+
 .cluster button,
 .date-field input {
   appearance: none;
   font-family: var(--sans);
-  color: rgba(232, 236, 243, 0.72);
+  color: var(--ink-2);
   background: transparent;
   border: 0;
-  border-radius: 0;
-  height: 36px;
-  min-height: 36px;
-  max-height: 36px;
+  border-radius: 11px;
+  height: 38px;
+  min-height: 38px;
+  max-height: 38px;
   margin: 0;
   padding: 0 14px;
-  letter-spacing: 0.12em;
-  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  font-size: 0.76rem;
+  font-weight: 500;
   line-height: 1;
   white-space: nowrap;
   touch-action: manipulation;
-  transition: color 480ms ease, background 480ms ease;
+  transition:
+    color var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease-spring),
+    opacity var(--t-fast) var(--ease);
 }
 
 .cluster button {
@@ -485,42 +747,99 @@ body {
   cursor: pointer;
 }
 
+.cluster button:hover,
+.date-field input:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cluster button:active,
+.date-field input:active {
+  transform: scale(0.97);
+}
+
 .cluster button:disabled {
-  opacity: 0.38;
+  opacity: 0.30;
   cursor: default;
 }
 
 .cluster button:disabled:hover {
-  color: rgba(232, 236, 243, 0.72);
+  color: var(--ink-2);
   background: transparent;
+}
+
+.cluster button:disabled:active {
+  transform: none;
 }
 
 button[hidden] {
   display: none !important;
 }
 
-.control-nav > * + *,
-.control-extra > :not([hidden]) {
-  box-shadow: inset 1px 0 0 var(--line);
+.control-nav > * + * {
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.08);
 }
 
-.cluster button:hover,
-.date-field input:hover {
-  color: var(--ink);
-  background: rgba(232, 236, 243, 0.04);
+.control-extra {
+  display: flex;
+  gap: 8px;
+}
+
+.control-extra > button {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--r-chip);
+  background: var(--glass-2);
+  box-shadow: var(--depth-chip);
+}
+
+.control-extra > button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.control-extra > #share {
+  color: #ffffff;
+  font-weight: 600;
+  background: linear-gradient(
+    180deg,
+    rgba(120, 180, 255, 0.96),
+    rgba(70, 145, 240, 0.96)
+  );
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.28) inset,
+    0 1px 2px rgba(0, 0, 0, 0.24),
+    0 6px 18px rgba(70, 145, 240, 0.34);
+}
+
+.control-extra > #share:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(138, 192, 255, 0.98),
+    rgba(84, 158, 248, 0.98)
+  );
+}
+
+.control-extra > #share:disabled {
+  color: var(--muted);
+  background: var(--glass-2);
+  box-shadow: var(--depth-chip);
+  opacity: 0.5;
 }
 
 .cluster button:focus-visible,
 .date-field input:focus-visible {
-  outline: 1px solid rgba(186, 198, 214, 0.8);
-  outline-offset: -2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
   position: relative;
   z-index: 1;
 }
 
 .date-field {
   display: flex;
-  width: 9.6rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .date-field input {
@@ -528,16 +847,25 @@ button[hidden] {
   color: var(--ink);
   color-scheme: dark;
   font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.03em;
-  padding: 0 8px;
+  letter-spacing: 0.01em;
+  padding: 0 12px;
 }
 
 .date-field input::-webkit-calendar-picker-indicator {
   cursor: pointer;
-  opacity: 0.92;
+  opacity: 0.62;
   filter: brightness(0) invert(1);
+  transition: opacity var(--t-fast) var(--ease);
 }
+
+.date-field input:hover::-webkit-calendar-picker-indicator {
+  opacity: 0.92;
+}
+
+/* ---------- 无障碍：仅读屏可见 ---------- */
 
 .sr-only {
   position: absolute;
@@ -551,207 +879,243 @@ button[hidden] {
   border: 0;
 }
 
+/* ==========================================================================
+   动效关键帧
+   ========================================================================== */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(26px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes float-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes roll-in {
+  from {
+    transform: translateY(0.72em);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   响应式：移动端底部玻璃抽屉
+   ========================================================================== */
+
 @media (max-width: 720px) {
   .brand {
-    top: max(12px, env(safe-area-inset-top));
-    left: max(16px, env(safe-area-inset-left));
+    top: max(14px, env(safe-area-inset-top));
+    left: max(14px, env(safe-area-inset-left));
+    padding: 8px 14px 9px;
+    border-radius: 12px;
   }
 
   .brand h1 {
-    margin-top: 6px;
-    font-size: 0.72rem;
-    letter-spacing: 0.4em;
+    font-size: 0.76rem;
+    letter-spacing: 0.22em;
+    text-indent: 0.22em;
+  }
+
+  .brand-mark {
+    font-size: 0.5rem;
+    letter-spacing: 0.24em;
   }
 
   .hud {
-    align-items: stretch;
-    gap: 12px;
-    padding: 14px 16px calc(12px + env(safe-area-inset-bottom));
-    background: rgba(5, 7, 13, 0.46);
-    border: 1px solid var(--line);
-    border-bottom: 0;
-    border-radius: 10px 10px 0 0;
-    pointer-events: auto;
-    overflow: visible;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    transform: none;
+    width: 100%;
+    gap: 14px;
+    padding: 18px 18px calc(16px + env(safe-area-inset-bottom));
+    border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+    box-shadow:
+      0 0 0 0.5px rgba(255, 255, 255, 0.10) inset,
+      0 1px 0 0 rgba(255, 255, 255, 0.12) inset,
+      0 -2px 8px rgba(0, 0, 0, 0.24),
+      0 -12px 32px rgba(0, 0, 0, 0.34),
+      0 -28px 60px rgba(0, 0, 0, 0.30);
+    animation: sheet-in 820ms var(--ease-out) both;
   }
 
   .caption {
     display: block;
-    text-shadow: none;
   }
 
   .eyebrow {
-    display: none;
-  }
-
-  .phase-name {
-    font-size: 1.45rem;
-    letter-spacing: 0.1em;
-    line-height: 1;
-  }
-
-  .poem {
-    margin-top: 6px;
-    max-width: none;
-    font-size: 0.78rem;
-    letter-spacing: 0.02em;
-    line-height: 1.35;
-    text-shadow: none;
-  }
-
-  .metrics {
-    width: 100%;
-    padding: 4px 0 2px;
-    border: 0;
-  }
-
-  .metrics > div {
-    padding: 0 8px;
-  }
-
-  .metrics > div:first-child {
-    padding-left: 0;
-  }
-
-  .metrics > div:last-child {
-    padding-right: 0;
-  }
-
-  .metrics dt {
-    letter-spacing: 0.06em;
+    margin-bottom: 7px;
     font-size: 0.58rem;
   }
 
+  .phase-name {
+    font-size: 1.72rem;
+    letter-spacing: -0.01em;
+    line-height: 1.06;
+  }
+
+  .poem {
+    margin-top: 9px;
+    max-width: none;
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+
+  .metrics {
+    padding: 12px 2px;
+    gap: 0;
+  }
+
+  .metrics > div {
+    padding: 0 12px;
+  }
+
+  .metrics > div:first-child {
+    padding-left: 14px;
+  }
+
+  .metrics > div:last-child {
+    padding-right: 14px;
+  }
+
+  .metrics dt {
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+  }
+
   .metrics dd {
-    height: 1.05rem;
-    margin-top: 8px;
-    font-size: 0.86rem;
+    height: 1.2rem;
+    font-size: 0.94rem;
   }
 
   .identity {
-    margin-top: 6px;
-    font-size: 0.66rem;
-    gap: 4px 12px;
+    margin-top: 0;
+    font-size: 0.68rem;
+    gap: 5px 14px;
   }
 
   .dock {
-    align-items: stretch;
-    width: 100%;
-    gap: 8px;
-  }
-
-  .mode-switch {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: 100%;
-    height: 40px;
-  }
-
-  .mode-switch button {
-    height: 40px;
+    gap: 9px;
   }
 
   .people {
-    flex-direction: column;
-    width: 100%;
+    gap: 7px;
+  }
+
+  .people[data-mode="dual"] {
+    grid-template-columns: 1fr;
   }
 
   .person,
-  .name-field,
-  .person-pick {
-    height: 44px;
+  .control-nav {
+    height: 46px;
   }
 
-  .people[data-mode="single"] .person {
-    width: 100%;
+  .name-field,
+  .person-pick,
+  .cluster button,
+  .date-field input {
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
   }
 
   .cluster {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    width: 100%;
-    height: auto;
-    gap: 8px;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    overflow: visible;
-  }
-
-  .control-nav {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: stretch;
-    height: 44px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--surface);
-    overflow: hidden;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
   }
 
   .control-extra {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    min-height: 44px;
+    gap: 7px;
   }
 
   .control-extra:has(#today:not([hidden])) {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
   }
 
-  .date-field {
-    width: auto;
-    min-width: 0;
-  }
-
-  .cluster button,
-  .date-field input {
-    height: 44px;
-    min-height: 44px;
-    max-height: 44px;
-    font-size: 0.75rem;
-  }
-
-  .control-extra > #today,
-  .control-extra > #share {
-    box-shadow: none;
+  .control-extra > button {
     width: 100%;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--surface);
+    padding: 0 16px;
   }
 
-  .cluster button:disabled {
-    opacity: 0.4;
+  .mode-switch {
+    height: 40px;
+  }
+
+  .mode-switch button {
+    font-size: 0.8rem;
   }
 }
 
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(34px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* ---------- 横屏矮视口：三栏压缩 ---------- */
+
 @media (max-height: 520px) and (orientation: landscape) {
+  .brand {
+    top: max(10px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+    padding: 6px 12px 7px;
+    border-radius: 10px;
+  }
+
   .brand-mark {
     display: none;
   }
 
   .brand h1 {
-    font-size: 0.72rem;
-    letter-spacing: 0.32em;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-indent: 0.2em;
   }
 
   .hud {
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    transform: none;
+    width: auto;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
     grid-template-areas: "caption metrics dock";
-    align-items: end;
-    column-gap: 16px;
+    align-items: center;
+    column-gap: 20px;
     row-gap: 8px;
-    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
-    background: linear-gradient(180deg, transparent, rgba(5, 7, 13, 0.42) 46%);
-    border: 0;
-    border-radius: 0;
-    pointer-events: none;
-    overflow: visible;
-    max-height: none;
+    padding: 12px 16px;
+    border-radius: 22px;
   }
 
   .fallback {
@@ -764,33 +1128,36 @@ button[hidden] {
     width: auto;
   }
 
-  .eyebrow {
-    display: none;
-  }
-
   .phase-name {
-    font-size: 1.25rem;
-    letter-spacing: 0.1em;
+    font-size: 1.28rem;
+    letter-spacing: -0.01em;
   }
 
   .poem {
-    max-width: 11.5rem;
-    margin-top: 4px;
-    font-size: 0.62rem;
-    line-height: 1.3;
-    text-shadow: none;
+    max-width: 12rem;
+    margin-top: 5px;
+    font-size: 0.64rem;
+    line-height: 1.4;
   }
 
   .metrics {
     grid-area: metrics;
     width: 100%;
-    padding: 0;
-    border: 0;
+    padding: 8px 2px;
+  }
+
+  .metrics > div {
+    padding: 0 12px;
+  }
+
+  .metrics dt {
+    font-size: 0.55rem;
   }
 
   .metrics dd {
-    margin-top: 4px;
-    font-size: 0.75rem;
+    height: 1rem;
+    margin: 0;
+    font-size: 0.78rem;
   }
 
   .identity {
@@ -801,71 +1168,89 @@ button[hidden] {
     grid-area: dock;
     align-items: flex-end;
     width: auto;
-    max-width: 28rem;
+    max-width: 26rem;
     gap: 6px;
+  }
+
+  .mode-switch {
+    height: 32px;
+  }
+
+  .mode-switch button {
+    font-size: 0.7rem;
   }
 
   .people {
     width: 100%;
   }
 
-  .cluster {
-    display: inline-flex;
-    flex-direction: row;
-    align-items: stretch;
-    width: auto;
-    height: 44px;
-    gap: 0;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--surface);
-    overflow: hidden;
+  .person,
+  .control-nav {
+    height: 40px;
   }
 
-  .control-nav,
-  .control-extra {
-    display: contents;
+  .name-field,
+  .person-pick,
+  .cluster button,
+  .date-field input {
+    height: 34px;
+    min-height: 34px;
+    max-height: 34px;
+    font-size: 0.72rem;
   }
 
-  .control-extra > #today,
-  .control-extra > #share {
-    width: auto;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: inset 1px 0 0 var(--line);
+  .control-extra > button {
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    padding: 0 14px;
   }
 
   .date-field {
-    width: 8.4rem;
+    min-width: 8.4rem;
   }
-
-  .cluster button,
-  .date-field input {
-    height: 44px;
-    min-height: 44px;
-    max-height: 44px;
-  }
-
 }
 
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
+/* ==========================================================================
+   无障碍：降低动效偏好 —— 去掉位移/缩放/模糊，只保留必要的即时反馈
+   ========================================================================== */
 
 @media (prefers-reduced-motion: reduce) {
   .hud,
   .brand,
+  .webgl-error,
   .phase-name,
   .poem,
   .metrics dd,
-  .cluster button,
-  .date-field input,
+  .identity,
+  .identity span,
+  .identity span::before,
+  .seg-thumb,
   .mode-switch button,
+  .person,
+  .person-pick,
   .name-field,
-  .person-pick {
-    animation: none;
-    transition: none;
+  .cluster button,
+  .control-extra > button,
+  .date-field input,
+  .date-field input::-webkit-calendar-picker-indicator {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .metrics dd.is-rolling .num,
+  .metrics dd.is-rolling .unit {
+    animation: none !important;
+  }
+
+  .mode-switch button:active,
+  .person-pick:active,
+  .cluster button:active,
+  .date-field input:active {
+    transform: none;
+  }
+
+  .is-dim {
+    opacity: 1;
   }
 }

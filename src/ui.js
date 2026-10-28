@@ -48,6 +48,7 @@ export function mountUI(root, initialDate, onEvent) {
   let active = 0;
   let mode = 'single';
   const timers = new WeakMap();
+  const rolls = new WeakMap();
 
   function fadeText(el, text) {
     if (el.textContent === text) return;
