@@ -41,6 +41,7 @@ const shownAt = [null, null];
 let moons = null;
 let starsApi = null;
 let frameCamera = () => {};
+let beginPairTransition = () => {};
 let renderer = null;
 
 function skyPose(date) {
@@ -149,6 +150,7 @@ const ui = mountUI(document, opened, (event) => {
     viewMode = event.mode;
     if (viewMode === 'single') activeIndex = 0;
     present({ now, sky: 'place', easeLight: false });
+    beginPairTransition(viewMode === 'dual');
     frameCamera();
     return;
   }
@@ -223,16 +225,58 @@ function boot(gl) {
 
   const brand = document.querySelector('.brand');
 
-  function placeMoons(pair, y) {
-    const sep = pair ? moon.radius * PAIR_SEP : 0;
+  // 双月切换不做淡入淡出。第二颗月亮始终是完全不透明的：
+  // 起始时它正好藏在第一颗背后（沿视线略微后移，避免共面深度冲突），
+  // 随后随分离量一起被推开——看起来是连续的物理运动，而不是凭空浮现。
+  // 相机距离同步插值，所以画面不会因为构图目标突变而"跳一下"。
+  const PAIR_MS = reduceMotion ? 0 : 780;
+  let pairBlend = viewMode === 'dual' ? 1 : 0;
+  let pairFrom = pairBlend;
+  let pairTo = pairBlend;
+  let pairStart = 0;
+  let layout = null;
+
+  function easePair(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
+  }
+
+  beginPairTransition = function beginPairTransition(pair) {
+    const target = pair ? 1 : 0;
+    if (target === pairTo) return;
+    pairFrom = pairBlend;
+    pairTo = target;
+    pairStart = performance.now();
+    if (PAIR_MS <= 0) pairBlend = target;
+    moons[1].anchor.visible = true;
+  };
+
+  function updatePair(now) {
+    if (pairFrom === pairTo) return;
+    if (PAIR_MS <= 0) {
+      pairBlend = pairTo;
+      return;
+    }
+    const t = Math.min(1, (now - pairStart) / PAIR_MS);
+    pairBlend = pairFrom + (pairTo - pairFrom) * easePair(t);
+    if (t >= 1) pairBlend = pairTo;
+  }
+
+  function applyLayout() {
+    if (!layout) return;
+    const b = pairBlend;
+    const dist = layout.single.dist + (layout.dual.dist - layout.single.dist) * b;
+    const y = layout.single.y + (layout.dual.y - layout.single.y) * b;
+    const sep = moon.radius * PAIR_SEP * b;
     moons[0].anchor.visible = true;
-    moons[1].anchor.visible = pair;
-    moons[0].anchor.position.set(pair ? -sep : 0, y, 0);
-    moons[1].anchor.position.set(pair ? sep : 0, y, 0);
+    moons[1].anchor.visible = b > 0 || pairTo > 0;
+    moons[0].anchor.position.set(-sep, y, 0);
+    moons[1].anchor.position.set(sep, y, -moon.radius * 0.01);
+    camera.position.set(0, 0, dist);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(0, 0, 0);
   }
 
   frameCamera = function frameCamera() {
-    const pair = viewMode === 'dual';
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const mobile = vw <= 720;
@@ -252,27 +296,31 @@ function boot(gl) {
     const availH = Math.max(72, bottomLimit - topLimit);
     const side = landscapeShort ? 16 : mobile ? 18 : 64;
     const widthBudget = vw - side * 2;
-    const widthCap = widthBudget * (landscapeShort ? 0.92 : mobile ? 0.92 : pair ? 0.78 : 0.56);
-    const heightCap = availH * (landscapeShort ? 0.92 : 0.86);
-    const vhCap = vh * (landscapeShort ? 0.5 : mobile ? 0.58 : 0.52);
-    const span = pair ? PAIR_SPAN : 1;
-    const targetPx = Math.max(64, Math.min(widthCap / span, heightCap, vhCap));
     const vFov = THREE.MathUtils.degToRad(camera.fov);
     const tanHalf = Math.tan(vFov / 2);
-    const fitDist = (moon.radius * vh) / (tanHalf * targetPx);
-    const freeCenter = topLimit + availH / 2;
-    const y = fitDist * tanHalf * ((vh - 2 * freeCenter) / vh);
 
-    placeMoons(pair, y);
-    stars.object.position.set(0, 0, 0);
-    camera.position.set(0, 0, fitDist);
-    camera.up.set(0, 1, 0);
-    camera.lookAt(0, 0, 0);
+    // 单月与双月两套构图都算出来，由 applyLayout 按过渡进度插值，
+    // 避免切换瞬间相机距离突变导致月球大小"跳一下"。
+    const fitFor = (pair) => {
+      const widthCap = widthBudget * (landscapeShort ? 0.92 : mobile ? 0.92 : pair ? 0.78 : 0.56);
+      const heightCap = availH * (landscapeShort ? 0.92 : 0.86);
+      const vhCap = vh * (landscapeShort ? 0.5 : mobile ? 0.58 : 0.52);
+      const span = pair ? PAIR_SPAN : 1;
+      const targetPx = Math.max(64, Math.min(widthCap / span, heightCap, vhCap));
+      const dist = (moon.radius * vh) / (tanHalf * targetPx);
+      const freeCenter = topLimit + availH / 2;
+      const y = dist * tanHalf * ((vh - 2 * freeCenter) / vh);
+      return { dist, y };
+    };
+
+    layout = { single: fitFor(false), dual: fitFor(true) };
+
     camera.aspect = vw / Math.max(1, vh);
     camera.updateProjectionMatrix();
     gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     stars.setPixelRatio(gl.getPixelRatio());
     gl.setSize(vw, vh, false);
+    applyLayout();
   };
 
   function frameShare(index) {
@@ -382,6 +430,10 @@ function boot(gl) {
     const introDur = reduceMotion ? 1 : 1500;
     const intro = Math.min(1, (now - introStart) / introDur);
     const reveal = 1 - (1 - intro) ** 3;
+    // 双月切换的推移在这里逐帧推进。reveal 只负责首屏淡入，
+    // 切换月球走的是位置与相机距离插值，不碰任何透明度。
+    updatePair(now);
+    applyLayout();
     for (const body of moons) body.update(now, reveal);
     stars.setFade(Math.min(1, reveal * 1.4));
     stars.update(now);

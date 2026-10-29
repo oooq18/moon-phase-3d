@@ -413,10 +413,18 @@ button[hidden] {
   display: none !important;
 }
 
-/* ---------- 单月 / 双月：并成一组 ---------- */
+/* ---------- 单月 / 双月：滑块位移 ---------- */
 
 .mode-switch {
+  position: relative;
   display: inline-flex;
+  isolation: isolate;
+}
+
+.mode-switch button {
+  position: relative;
+  z-index: 1;
+  background: transparent;
 }
 
 .mode-switch button + button {
@@ -425,12 +433,25 @@ button[hidden] {
 
 .mode-switch button[aria-checked="true"] {
   color: var(--ink);
-  background: rgba(240, 236, 227, 0.1);
-  border-color: rgba(240, 236, 227, 0.26);
 }
 
-.mode-switch button[aria-checked="true"] + button {
-  border-left: 0;
+/* 滑块：一块会平移的高亮底，取代生硬的底色切换 */
+.seg-ind {
+  position: absolute;
+  z-index: 0;
+  top: -1px;
+  bottom: -1px;
+  left: -1px;
+  width: calc(50% + 1px);
+  border: 1px solid rgba(240, 236, 227, 0.28);
+  border-radius: 2px;
+  background: rgba(240, 236, 227, 0.1);
+  transition: transform 420ms var(--ease);
+  will-change: transform;
+}
+
+.mode-switch:has(#mode-dual[aria-checked="true"]) .seg-ind {
+  transform: translateX(100%);
 }
 
 /* ---------- 姓名 + 该人的日期 ---------- */
@@ -479,6 +500,98 @@ button[hidden] {
 
 .person-when {
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 显隐过渡：消除 display:none 的硬切 ---------- */
+
+/* 双月时第二张人物卡滑入；回到单月时整组收拢 */
+.people[data-mode="dual"] #person-1 {
+  animation: slide-in 460ms var(--ease) both;
+}
+
+.people {
+  transition: gap 380ms var(--ease);
+}
+
+.person {
+  transition: opacity 320ms var(--ease);
+}
+
+/* 诗句、身份行、「今天」出现时淡入上浮，而不是瞬间蹦出 */
+.poem:not([hidden]) {
+  animation: reveal 480ms var(--ease) both;
+}
+
+.identity:not([hidden]) {
+  animation: reveal 420ms var(--ease) 60ms both;
+}
+
+.control-extra > button:not([hidden]) {
+  animation: reveal-x 360ms var(--ease) both;
+}
+
+.fallback:not([hidden]) {
+  animation: reveal 400ms var(--ease) both;
+}
+
+/* ---------- 按压与悬停反馈 ---------- */
+
+.mode-switch button:active,
+.person-pick:active,
+.cluster button:active,
+.date-field input:active,
+.name-field:active {
+  background: rgba(240, 236, 227, 0.14);
+}
+
+.glyph:hover {
+  background: var(--hover);
+}
+
+.glyph:active {
+  background: rgba(240, 236, 227, 0.16);
+}
+
+/* 箭头按钮悬停时轻微位移，暗示"翻一天"的方向 */
+#prev:hover:not(:disabled) {
+  transform: translateX(-1px);
+}
+
+#next:hover:not(:disabled) {
+  transform: translateX(1px);
+}
+
+#prev,
+#next {
+  transition:
+    color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease),
+    opacity var(--t-fast) var(--ease);
+}
+
+/* 选中的人：日期文字与描边同步过渡 */
+.person-pick,
+.person.is-active .person-pick {
+  transition:
+    color 320ms var(--ease),
+    border-color 320ms var(--ease),
+    background var(--t-fast) var(--ease);
+}
+
+/* 读数区发丝线在布局变化时柔和过渡 */
+.metrics {
+  transition: padding-bottom 380ms var(--ease);
+}
+
+/* 月相名换字时轻微沉降，配合已有的淡入淡出 */
+.phase-name.is-in {
+  animation: settle 520ms var(--ease) both;
+}
+
+.poem.is-in {
+  animation: settle 520ms var(--ease) both;
 }
 
 /* ---------- 日期导航 ---------- */
@@ -601,6 +714,50 @@ button[hidden] {
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reveal-x {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0.18;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -843,22 +1000,40 @@ button[hidden] {
   .brand,
   .phase-name,
   .poem,
+  .metrics,
   .metrics dd,
   .identity,
   .identity span,
+  .fallback,
+  .seg-ind,
   .mode-switch button,
   .name-field,
+  .person,
   .person-pick,
+  .people,
   .cluster button,
   .date-field input,
-  .date-field input::-webkit-calendar-picker-indicator {
+  .date-field input::-webkit-calendar-picker-indicator,
+  .control-extra > button {
     animation: none !important;
     transition: none !important;
   }
 
   .metrics dd.is-rolling .num,
-  .metrics dd.is-rolling .unit {
+  .metrics dd.is-rolling .unit,
+  .phase-name.is-in,
+  .poem.is-in,
+  .poem:not([hidden]),
+  .identity:not([hidden]),
+  .fallback:not([hidden]),
+  .control-extra > button:not([hidden]),
+  .people[data-mode="dual"] #person-1 {
     animation: none !important;
+  }
+
+  #prev:hover:not(:disabled),
+  #next:hover:not(:disabled) {
+    transform: none;
   }
 
   .is-dim {

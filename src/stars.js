@@ -162,19 +162,41 @@ varying float vHalo;
 varying float vFlicker;
 
 void main() {
-  vec2 q = gl_PointCoord - vec2(0.5);
-  float r2 = dot(q, q);
+  vec2 p = gl_PointCoord - vec2(0.5);
+  float r2 = dot(p, p);
   if (r2 > 0.25) discard;
   float r = sqrt(r2) * 2.0;
   float halo = clamp(vHalo, 0.0, 1.0);
-  // Wide enough that a ~2px point still covers its pixel. The old
-  // exp(-26) core lived in the inner third and vanished when rasterized small.
-  float core = exp(-r * r * mix(7.5, 4.2, halo));
-  float wing = exp(-r * r * 2.4) * smoothstep(0.04, 0.55, halo);
-  float veil = exp(-r * r * 0.9) * smoothstep(0.35, 0.85, halo);
-  float alpha = clamp((core + wing * 0.42 + veil * 0.18) * vFlicker, 0.0, 1.0);
-  if (alpha < 0.03) discard;
-  gl_FragColor = vec4(vColor, alpha);
+
+  // 三层光度结构，而不是一坨高斯：
+  // 核（ Airy 主瓣，很陡）+ 内晕（镜面散射）+ 外纱（大气辉光）
+  float core = exp(-r * r * mix(13.0, 5.2, halo));
+  float wing = exp(-r * r * 2.6) * smoothstep(0.02, 0.5, halo);
+  float veil = exp(-r * r * 1.05) * smoothstep(0.3, 0.92, halo);
+
+  // 衍射十字芒：口径支撑结构造成的四芒，是"真实长曝光"最关键的识别特征。
+  // 只有亮星（halo 高）才长芒，暗星保持圆点，符合实际观测。
+  float u = abs(p.x);
+  float v = abs(p.y);
+  float cross = exp(-v * 118.0) * exp(-u * 5.4)
+              + exp(-u * 118.0) * exp(-v * 5.4);
+  // 极亮星再叠一组更弱的斜芒
+  vec2 d = vec2((p.x + p.y) * 0.7071, (p.x - p.y) * 0.7071);
+  float du = abs(d.x);
+  float dv = abs(d.y);
+  float diag = exp(-dv * 155.0) * exp(-du * 8.2)
+             + exp(-du * 155.0) * exp(-dv * 8.2);
+  float spikeGate = smoothstep(0.16, 0.86, halo);
+  float spikes = cross * spikeGate * 0.5 + diag * spikeGate * spikeGate * 0.18;
+
+  float body = core + wing * 0.40 + veil * 0.15 + spikes;
+  float alpha = clamp(body * vFlicker, 0.0, 1.0);
+  if (alpha < 0.02) discard;
+
+  // 外纱略偏冷：模拟镜头的轴向色差，避免整颗星是纯色圆片
+  vec3 col = vColor * (1.0 + veil * 0.12);
+  col = mix(col, col * vec3(0.84, 0.92, 1.10), veil * 0.55);
+  gl_FragColor = vec4(col, alpha);
 }
 `;
 
@@ -276,7 +298,14 @@ function fillPopulation(rand, count, spec) {
     sizes[i] = pointSize(magnitude) * sizeScale * (0.86 + rand() * 0.28);
     halos[i] = haloAmount(magnitude) * haloScale;
     phases[i] = rand();
-    twinkles[i] = magnitude < 1.8 && depth < 0.5 && rand() < 0.4 ? 0.02 + rand() * 0.016 : 0;
+    // 闪烁：近层亮星为主，慢速小幅正弦。移动端与降低动效偏好下由
+    // uTwinkle 统一置零，这里只负责分配幅度与相位。
+    if (depth < 0.6 && rand() < 0.5) {
+      const weight = magnitude < 2.4 ? 1 : 0.45;
+      twinkles[i] = (0.02 + rand() * 0.032) * weight;
+    } else {
+      twinkles[i] = 0;
+    }
     depths[i] = depth;
   }
 
