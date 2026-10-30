@@ -80,10 +80,10 @@ function pointSize(magnitude) {
 }
 
 function haloAmount(magnitude) {
-  // 门槛放宽到 3.5，更多中等星有小芒
-  if (magnitude > 3.5) return 0;
-  const u = Math.min(1, Math.max(0, (3.5 - magnitude) / 4.5));
-  return u * u * 0.9;
+  // 门槛放宽到 4.0，更多中等星有芒
+  if (magnitude > 4.0) return 0;
+  const u = Math.min(1, Math.max(0, (4.0 - magnitude) / 4.5));
+  return u * u * 0.95;
 }
 
 function placeOnSphere(rand, radius) {
@@ -187,8 +187,8 @@ void main() {
   float dv = abs(d.y);
   float diag = exp(-dv * 140.0) * exp(-du * 6.5)
              + exp(-du * 140.0) * exp(-dv * 6.5);
-  float spikeGate = smoothstep(0.3, 0.85, halo);
-  float spikes = cross * spikeGate * 0.7 + diag * spikeGate * spikeGate * 0.25;
+  float spikeGate = smoothstep(0.05, 0.6, halo);
+  float spikes = cross * spikeGate * 0.6 + diag * spikeGate * spikeGate * 0.22;
 
   float body = core + wing * 0.25 + veil * 0.08 + spikes;
   float alpha = clamp(body * vFlicker, 0.0, 1.0);
