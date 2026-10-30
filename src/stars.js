@@ -241,9 +241,10 @@ float noise(vec3 p) {
 
 void main() {
   vec3 dir = normalize(vDir);
-  float lat = dir.x * 0.22 + dir.y * 0.91 + dir.z * 0.18;
-  float ribbon = exp(-lat * lat * 46.0);
-  float shoulder = exp(-lat * lat * 12.0);
+  // 银河带方向：更倾斜，绕 Y 旋转时能明显扫过天空
+  float lat = dir.x * 0.62 + dir.y * 0.32 + dir.z * 0.52;
+  float ribbon = exp(-lat * lat * 42.0);
+  float shoulder = exp(-lat * lat * 11.0);
   float clumps = noise(dir * 3.2);
   float fine = noise(dir * 8.2 + 3.0);
   float grain = noise(dir * 15.0 + 1.7);
