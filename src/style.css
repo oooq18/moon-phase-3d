@@ -281,10 +281,22 @@ body {
   transform: translateY(-1px);
 }
 
-/* ---------- 双月身份行（已由日期胶囊按钮替代，隐藏避免信息重复） ---------- */
+/* ---------- 双月身份行 ---------- */
+
 .identity {
-  display: none !important;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 0;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
 }
+.identity[hidden] { display: none !important; }
+.identity span { transition: color var(--t-fast) var(--ease); }
+.identity span.is-active { color: var(--ink-2); }
 
 /* ---------- 文字切换 ---------- */
 

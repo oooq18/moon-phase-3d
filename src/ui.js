@@ -181,8 +181,12 @@ export function mountUI(root, initialDate, onEvent) {
 
   picks.forEach((button, index) => {
     button.addEventListener('click', () => {
-      if (mode !== 'dual' || index === active) return;
-      onEvent({ type: 'active', index });
+      if (mode !== 'dual') return;
+      if (index !== active) {
+        onEvent({ type: 'active', index });
+      }
+      // 选中这个人后直接弹出日期选择器，就地修改 ta 的日期
+      try { dateInput.showPicker(); } catch {}
     });
   });
 
