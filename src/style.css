@@ -328,28 +328,32 @@ body {
    双月人物行：极轻量
    ========================================================================== */
 
+/* 双月浮层：绝对定位在操作栏上方，不撑高 UI，不影响相机构图 */
+.dual-wrap {
+  position: absolute;
+  left: max(32px, env(safe-area-inset-left));
+  right: max(32px, env(safe-area-inset-right));
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+  transition:
+    opacity 350ms var(--ease),
+    transform 450ms var(--ease);
+}
+.hud:has(#mode-dual[aria-checked="true"]) .dual-wrap {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 .people {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-/* 双月展开：grid 0fr→1fr 平滑过渡高度 */
-.dual-wrap {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows 450ms var(--ease),
-    opacity 300ms var(--ease);
-}
-.hud:has(#mode-dual[aria-checked="true"]) .dual-wrap {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-.dual-wrap > * {
-  overflow: hidden;
-  min-height: 0;
 }
 
 .people[data-mode="single"] #person-1 {
