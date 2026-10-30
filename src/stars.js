@@ -381,7 +381,8 @@ function circleTexture() {
 }
 
 export function createStars({ reducedMotion = false, mobile = false } = {}) {
-  const rand = mulberry32(0x5f3759df);
+  // 每次打开随机种子，看到不同星图
+  const rand = mulberry32((Math.random() * 0xFFFFFFFF) >>> 0);
   const populations = [
     { count: mobile ? 18000 : 32000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.84, parallax: 0.84, plane: 0.58, spread: 0.13 },
     { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 1.5, magMax: 4.2, depth: 0.48, sizeScale: 1.05, haloScale: 0.4, dim: 1.02, parallax: 1, plane: 0.2, spread: 0.22 },
