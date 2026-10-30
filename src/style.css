@@ -292,18 +292,14 @@ body {
    ========================================================================== */
 
 .people {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 10px;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition: max-height 380ms var(--ease), opacity 320ms var(--ease);
 }
 
 .people[data-mode="dual"] {
-  max-height: 40px;
-  opacity: 1;
+  display: flex;
+  animation: fade-in 300ms var(--ease) 80ms both;
 }
 
 .people[data-mode="single"] #person-1 {
@@ -529,7 +525,7 @@ button[hidden] { display: none !important; }
 
 /* ---------- 出现动画 ---------- */
 .poem:not([hidden]) { animation: reveal 480ms var(--ease) both; }
-.identity:not([hidden]) { animation: reveal 420ms var(--ease) 60ms both; }
+.identity:not([hidden]) { animation: fade-in 280ms var(--ease) 180ms both; }
 .fallback:not([hidden]) { animation: reveal 400ms var(--ease) both; }
 #today:not([hidden]) { animation: fade-in 300ms var(--ease) both; }
 
@@ -599,7 +595,6 @@ button[hidden] { display: none !important; }
     align-items: stretch;
     gap: 6px;
   }
-  .people[data-mode="dual"] { max-height: 120px; }
   .person { width: 100%; }
   .name-field { flex: 1 1 auto; width: auto; height: 36px; }
   .person-pick { flex: 0 0 auto; height: 36px; }
@@ -679,7 +674,7 @@ button[hidden] { display: none !important; }
 /* ---------- 降低动效 ---------- */
 @media (prefers-reduced-motion: reduce) {
   .hud, .brand, .phase-name, .poem, .metrics, .identity, .fallback,
-  .people, .person-pick, .name-field, .mode-switch button,
+  .person-pick, .name-field, .mode-switch button,
   .glyph, .date-field input, #today, #share {
     animation: none !important;
     transition: none !important;
