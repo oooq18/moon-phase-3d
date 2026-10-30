@@ -393,15 +393,13 @@ body {
   flex-wrap: wrap;
 }
 
-/* 双月模式下隐藏统一日期导航条：各自名字后面的日期按钮已可就地改日期 */
+/* 双月模式下隐藏统一日期导航条：各自名字后面的日期按钮已可就地改日期。
+   注意不能用 display:none，否则里面的 <input type=date> 无法被 showPicker() 调起。 */
 .hud:has(#mode-dual[aria-checked="true"]) .nav,
 .hud:has(#mode-dual[aria-checked="true"]) #today {
-  display: none !important;
-}
-
-/* 双月模式下操作栏只剩切换和分享，靠右即可 */
-.hud:has(#mode-dual[aria-checked="true"]) .dock {
-  justify-content: flex-end;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .nav,

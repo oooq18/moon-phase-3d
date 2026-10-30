@@ -186,7 +186,12 @@ export function mountUI(root, initialDate, onEvent) {
         onEvent({ type: 'active', index });
       }
       // 选中这个人后直接弹出日期选择器，就地修改 ta 的日期
-      try { dateInput.showPicker(); } catch {}
+      try {
+        if (typeof dateInput.showPicker === 'function') dateInput.showPicker();
+        else dateInput.focus();
+      } catch {
+        dateInput.focus();
+      }
     });
   });
 
