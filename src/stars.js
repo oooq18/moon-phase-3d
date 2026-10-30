@@ -213,6 +213,7 @@ void main() {
 const galaxyFragment = /* glsl */ `
 varying vec3 vDir;
 uniform float uFade;
+uniform vec3 uBandDir;
 
 float hash(vec3 p) {
   p = fract(p * 0.1031);
@@ -241,8 +242,7 @@ float noise(vec3 p) {
 
 void main() {
   vec3 dir = normalize(vDir);
-  // 银河带方向：更倾斜，绕 Y 旋转时能明显扫过天空
-  float lat = dir.x * 0.62 + dir.y * 0.32 + dir.z * 0.52;
+  float lat = dot(dir, uBandDir);
   float ribbon = exp(-lat * lat * 42.0);
   float shoulder = exp(-lat * lat * 11.0);
   float clumps = noise(dir * 3.2);
@@ -438,8 +438,19 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
     return shell;
   });
 
+  // 银河带方向：每次打开随机一个倾斜角度
+  const bandAngle = rand() * Math.PI * 2;
+  const bandY = 0.25 + rand() * 0.25;
+  const bandXZ = Math.sqrt(1 - bandY * bandY);
   const galaxyMaterial = new THREE.ShaderMaterial({
-    uniforms: { uFade: { value: 0 } },
+    uniforms: {
+      uFade: { value: 0 },
+      uBandDir: { value: new THREE.Vector3(
+        Math.cos(bandAngle) * bandXZ,
+        bandY,
+        Math.sin(bandAngle) * bandXZ,
+      ).normalize() },
+    },
     vertexShader: galaxyVertex,
     fragmentShader: galaxyFragment,
     transparent: true,
