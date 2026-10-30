@@ -429,10 +429,8 @@ body {
   flex-wrap: wrap;
 }
 
-/* 双月模式下隐藏统一日期导航条：各自名字后面的日期按钮已可就地改日期。
-   注意不能用 display:none，否则里面的 <input type=date> 无法被 showPicker() 调起。 */
-.hud:has(#mode-dual[aria-checked="true"]) .nav,
-.hud:has(#mode-dual[aria-checked="true"]) #today {
+/* 双月模式下只隐藏左边的日期导航条，"今天"按钮保留（把当前选中人设回今天） */
+.hud:has(#mode-dual[aria-checked="true"]) .nav {
   position: absolute;
   opacity: 0;
   pointer-events: none;
