@@ -427,9 +427,9 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   // 每次打开随机种子，看到不同星图
   const rand = mulberry32((Math.random() * 0xFFFFFFFF) >>> 0);
   const populations = [
-    { count: mobile ? 26000 : 50000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.9, parallax: 0.72, plane: 0.58, spread: 0.13 },
-    { count: mobile ? 3600 : 6000, radiusMin: 240, radiusMax: 380, magMin: 1.5, magMax: 4.2, depth: 0.48, sizeScale: 1.05, haloScale: 0.5, dim: 1.05, parallax: 1.0, plane: 0.2, spread: 0.22 },
-    { count: mobile ? 140 : 220, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.3, haloScale: 1, dim: 1.2, parallax: 1.35, plane: 0.06, spread: 0.3 },
+    { count: mobile ? 40000 : 50000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.9, parallax: 0.72, plane: 0.58, spread: 0.13 },
+    { count: mobile ? 5000 : 6000, radiusMin: 240, radiusMax: 380, magMin: 1.5, magMax: 4.2, depth: 0.48, sizeScale: 1.05, haloScale: 0.5, dim: 1.05, parallax: 1.0, plane: 0.2, spread: 0.22 },
+    { count: mobile ? 180 : 220, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.3, haloScale: 1, dim: 1.2, parallax: 1.35, plane: 0.06, spread: 0.3 },
   ];
 
   const material = new THREE.ShaderMaterial({
