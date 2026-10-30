@@ -520,6 +520,23 @@ button[hidden] { display: none !important; }
   color: var(--ink);
 }
 
+/* "今天"：低调文字链接，不要胶囊不要放大 */
+#today {
+  height: 28px;
+  padding: 0 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  border-radius: 0;
+}
+#today:hover {
+  transform: none;
+  background: transparent;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+#today:active { transform: none; }
+
 /* 分享按钮：稍亮 */
 #share {
   height: 32px;
