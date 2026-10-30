@@ -275,7 +275,7 @@ function boot(gl) {
     const y = layout.single.y + (layout.dual.y - layout.single.y) * b;
     // 分离距离用 easeOutBack，带一点弹性 overshoot
     const sepT = easePair(b);
-    const sep = moon.radius * PAIR_SEP * easeOutBack(sepT);
+    const sep = moon.radius * PAIR_SEP * sepT;
     // 第二颗月亮：从 0.3 倍大小长到 1，和分离同步
     const secondScale = 0.3 + 0.7 * sepT;
     moons[0].anchor.visible = true;
