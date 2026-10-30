@@ -253,10 +253,14 @@ void main() {
   float dust = smoothstep(0.7, 0.24, fine);
   float knots = smoothstep(0.58, 0.9, grain);
   float band = ribbon * 0.85 + shoulder * 0.32;
-  float alpha = band * clouds * (0.2 + 0.8 * dust) * (0.09 + 0.075 * knots) * uFade;
+  float alpha = band * clouds * (0.2 + 0.8 * dust) * (0.14 + 0.11 * knots) * uFade;
+  // 地平线方向加一层淡暖黄辉光（大气光害感）
+  float horizon = smoothstep(-0.2, 0.15, dir.y) * smoothstep(0.5, 0.0, dir.y);
+  alpha += horizon * 0.05 * uFade;
   vec3 cool = vec3(0.42, 0.52, 0.76);
   vec3 warm = vec3(0.78, 0.66, 0.5);
   vec3 col = mix(cool, warm, clamp(ribbon * (0.3 + 0.7 * dust), 0.0, 1.0));
+  col = mix(col, vec3(0.55, 0.45, 0.3), horizon);
   gl_FragColor = vec4(col, alpha);
 }
 `;
@@ -424,7 +428,7 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   // 每次打开随机种子，看到不同星图
   const rand = mulberry32((Math.random() * 0xFFFFFFFF) >>> 0);
   const populations = [
-    { count: mobile ? 18000 : 32000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.84, parallax: 0.72, plane: 0.58, spread: 0.13 },
+    { count: mobile ? 26000 : 50000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.84, parallax: 0.72, plane: 0.58, spread: 0.13 },
     { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 1.5, magMax: 4.2, depth: 0.48, sizeScale: 1.05, haloScale: 0.4, dim: 1.02, parallax: 1.0, plane: 0.2, spread: 0.22 },
     { count: mobile ? 72 : 128, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.22, haloScale: 1, dim: 1.16, parallax: 1.35, plane: 0.06, spread: 0.3 },
   ];
