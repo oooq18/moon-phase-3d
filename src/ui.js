@@ -106,26 +106,10 @@ export function mountUI(root, initialDate, onEvent) {
     const who = next?.author ?? '';
     const signature = `${text}\u0000${who}`;
     if (poemEl.dataset.signature === signature) return;
-    const apply = () => {
-      poemEl.dataset.signature = signature;
-      poemLine.textContent = text;
-      poemAuthor.textContent = who;
-      poemEl.hidden = !text;
-      poemEl.classList.remove('is-dim');
-    };
-    const previous = timers.get(poemEl);
-    if (previous) window.clearTimeout(previous);
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce || !poemEl.dataset.signature) {
-      apply();
-      return;
-    }
-    poemEl.classList.add('is-dim');
-    const timer = window.setTimeout(() => {
-      apply();
-      timers.delete(poemEl);
-    }, 400);
-    timers.set(poemEl, timer);
+    poemEl.dataset.signature = signature;
+    poemLine.textContent = text;
+    poemAuthor.textContent = who;
+    poemEl.hidden = !text;
   }
 
   function render(state) {

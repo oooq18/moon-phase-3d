@@ -187,8 +187,29 @@ body {
   font-weight: 400;
   letter-spacing: 0.04em;
   line-height: 1.62;
+  overflow: hidden;
+  max-height: 4em;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 260ms var(--ease),
+    max-height 260ms var(--ease),
+    margin-top 260ms var(--ease),
+    visibility 0s linear 0s;
 }
-.poem[hidden] { display: none !important; }
+
+.poem[hidden] {
+  display: block !important;
+  opacity: 0;
+  visibility: hidden;
+  max-height: 0;
+  margin-top: 0;
+  transition:
+    opacity 200ms var(--ease),
+    max-height 260ms var(--ease),
+    margin-top 260ms var(--ease),
+    visibility 0s linear 260ms;
+}
 
 .poem-author {
   color: var(--faint);
@@ -524,7 +545,6 @@ button[hidden] { display: none !important; }
 }
 
 /* ---------- 出现动画 ---------- */
-.poem:not([hidden]) { animation: reveal 480ms var(--ease) both; }
 .identity:not([hidden]) { animation: fade-in 280ms var(--ease) 180ms both; }
 .fallback:not([hidden]) { animation: reveal 400ms var(--ease) both; }
 #today:not([hidden]) { animation: fade-in 300ms var(--ease) both; }
