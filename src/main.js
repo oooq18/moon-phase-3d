@@ -229,15 +229,22 @@ function boot(gl) {
   // 起始时它正好藏在第一颗背后（沿视线略微后移，避免共面深度冲突），
   // 随后随分离量一起被推开——看起来是连续的物理运动，而不是凭空浮现。
   // 相机距离同步插值，所以画面不会因为构图目标突变而"跳一下"。
-  const PAIR_MS = reduceMotion ? 0 : 780;
+  const PAIR_MS = reduceMotion ? 0 : 900;
   let pairBlend = viewMode === 'dual' ? 1 : 0;
   let pairFrom = pairBlend;
   let pairTo = pairBlend;
   let pairStart = 0;
   let layout = null;
 
+  // smoothstep：相机距离和 y 位移用，平稳不弹
   function easePair(t) {
     return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
+  }
+  // easeOutBack：分离距离带一点 overshoot，像月亮"弹"开
+  function easeOutBack(t) {
+    const c1 = 1.4;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
   }
 
   beginPairTransition = function beginPairTransition(pair) {
@@ -266,11 +273,16 @@ function boot(gl) {
     const b = pairBlend;
     const dist = layout.single.dist + (layout.dual.dist - layout.single.dist) * b;
     const y = layout.single.y + (layout.dual.y - layout.single.y) * b;
-    const sep = moon.radius * PAIR_SEP * b;
+    // 分离距离用 easeOutBack，带一点弹性 overshoot
+    const sepT = easePair(b);
+    const sep = moon.radius * PAIR_SEP * easeOutBack(sepT);
+    // 第二颗月亮：从 0.3 倍大小长到 1，和分离同步
+    const secondScale = 0.3 + 0.7 * sepT;
     moons[0].anchor.visible = true;
-    moons[1].anchor.visible = b > 0 || pairTo > 0;
+    moons[1].anchor.visible = b > 0.01 || pairTo > 0;
     moons[0].anchor.position.set(-sep, y, 0);
     moons[1].anchor.position.set(sep, y, -moon.radius * 0.01);
+    moons[1].anchor.scale.setScalar(secondScale);
     camera.position.set(0, 0, dist);
     camera.up.set(0, 1, 0);
     camera.lookAt(0, 0, 0);
