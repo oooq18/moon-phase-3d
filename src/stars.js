@@ -93,8 +93,8 @@ function placeOnSphere(rand, radius) {
   return [radius * ring * Math.cos(theta), radius * z, radius * ring * Math.sin(theta)];
 }
 
-// Same axis the Milky Way shader uses, so faint stars can gather in the band.
-const BAND = [0.22, 0.91, 0.18];
+// 银河带方向，createStars 里随机设置（和 shader 的 uBandDir 一致）
+let BAND = [0.22, 0.91, 0.18];
 
 function placeInBand(rand, radius, spread) {
   const len = Math.hypot(BAND[0], BAND[1], BAND[2]);
@@ -465,6 +465,7 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   const bandAngle = rand() * Math.PI * 2;
   const bandY = 0.25 + rand() * 0.25;
   const bandXZ = Math.sqrt(1 - bandY * bandY);
+  BAND = [Math.cos(bandAngle) * bandXZ, bandY, Math.sin(bandAngle) * bandXZ];
   const galaxyMaterial = new THREE.ShaderMaterial({
     uniforms: {
       uFade: { value: 0 },
