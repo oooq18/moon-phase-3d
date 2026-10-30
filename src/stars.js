@@ -502,6 +502,23 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   drift.add(pose);
   shells.forEach((shell) => pose.add(shell));
 
+  // ---- 流星 ----
+  const meteorGeo = new THREE.BufferGeometry();
+  meteorGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+  const meteorMat = new THREE.LineBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const meteor = new THREE.Line(meteorGeo, meteorMat);
+  meteor.frustumCulled = false;
+  meteor.renderOrder = -1;
+  pose.add(meteor);
+  let meteorActive = false;
+  let meteorStart = 0;
+  let meteorFrom = new THREE.Vector3();
+  let meteorTo = new THREE.Vector3();
+  let nextMeteorAt = 3000 + rand() * 8000;
+
   let mode = 'shader';
   let fallback = null;
   const idleRate = reducedMotion ? 0 : 0.0017;
@@ -593,6 +610,33 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
       shells.forEach((shell) => {
         shell.rotation.y = shell.userData.parallax * angle;
       });
+
+      // 流星：随机 5-15 秒一道，0.7 秒划过
+      if (reducedMotion) {
+        meteorMat.opacity = 0;
+      } else if (!meteorActive && now > nextMeteorAt) {
+        meteorActive = true;
+        meteorStart = now;
+        meteorFrom.copy(placeOnSphere(rand, 400));
+        // 随机方向斜划
+        const ang = rand() * Math.PI * 2;
+        meteorTo.copy(meteorFrom).add(new THREE.Vector3(Math.cos(ang)*80, (rand()-0.3)*40, Math.sin(ang)*80));
+      } else if (meteorActive) {
+        const t = (now - meteorStart) / 700;
+        if (t >= 1) {
+          meteorActive = false;
+          meteorMat.opacity = 0;
+          nextMeteorAt = now + 5000 + rand() * 10000;
+        } else {
+          const head = meteorFrom.clone().lerp(meteorTo, t);
+          const tail = head.clone().lerp(meteorFrom, 0.15 + 0.25 * (1-t));
+          const pos = meteorGeo.attributes.position.array;
+          pos[0] = tail.x; pos[1] = tail.y; pos[2] = tail.z;
+          pos[3] = head.x; pos[4] = head.y; pos[5] = head.z;
+          meteorGeo.attributes.position.needsUpdate = true;
+          meteorMat.opacity = Math.sin(t * Math.PI) * 0.9;
+        }
+      }
       const liveIdle = seconds * idleRate;
       if (animDur > 0) {
         if (idleFrozen == null) idleFrozen = drift.rotation.y;
