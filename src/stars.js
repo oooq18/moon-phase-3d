@@ -177,20 +177,18 @@ void main() {
   float wing = exp(-r * r * 2.6) * smoothstep(0.02, 0.5, halo);
   float veil = exp(-r * r * 1.05) * smoothstep(0.3, 0.92, halo);
 
-  // 衍射十字芒：口径支撑结构造成的四芒，是"真实长曝光"最关键的识别特征。
-  // 只有亮星（halo 高）才长芒，暗星保持圆点，符合实际观测。
+  // 衍射十字芒：更明显
   float u = abs(p.x);
   float v = abs(p.y);
-  float cross = exp(-v * 118.0) * exp(-u * 5.4)
-              + exp(-u * 118.0) * exp(-v * 5.4);
-  // 极亮星再叠一组更弱的斜芒
+  float cross = exp(-v * 90.0) * exp(-u * 3.2)
+              + exp(-u * 90.0) * exp(-v * 3.2);
   vec2 d = vec2((p.x + p.y) * 0.7071, (p.x - p.y) * 0.7071);
   float du = abs(d.x);
   float dv = abs(d.y);
-  float diag = exp(-dv * 155.0) * exp(-du * 8.2)
-             + exp(-du * 155.0) * exp(-dv * 8.2);
-  float spikeGate = smoothstep(0.16, 0.86, halo);
-  float spikes = cross * spikeGate * 0.5 + diag * spikeGate * spikeGate * 0.18;
+  float diag = exp(-dv * 120.0) * exp(-du * 5.5)
+             + exp(-du * 120.0) * exp(-dv * 5.5);
+  float spikeGate = smoothstep(0.08, 0.7, halo);
+  float spikes = cross * spikeGate * 0.9 + diag * spikeGate * spikeGate * 0.35;
 
   float body = core + wing * 0.40 + veil * 0.15 + spikes;
   float alpha = clamp(body * vFlicker, 0.0, 1.0);
@@ -406,9 +404,9 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   // 每次打开随机种子，看到不同星图
   const rand = mulberry32((Math.random() * 0xFFFFFFFF) >>> 0);
   const populations = [
-    { count: mobile ? 18000 : 32000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.84, parallax: 0.84, plane: 0.58, spread: 0.13 },
-    { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 1.5, magMax: 4.2, depth: 0.48, sizeScale: 1.05, haloScale: 0.4, dim: 1.02, parallax: 1, plane: 0.2, spread: 0.22 },
-    { count: mobile ? 72 : 128, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.22, haloScale: 1, dim: 1.16, parallax: 1.16, plane: 0.06, spread: 0.3 },
+    { count: mobile ? 18000 : 32000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.84, parallax: 0.72, plane: 0.58, spread: 0.13 },
+    { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 1.5, magMax: 4.2, depth: 0.48, sizeScale: 1.05, haloScale: 0.4, dim: 1.02, parallax: 1.0, plane: 0.2, spread: 0.22 },
+    { count: mobile ? 72 : 128, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.22, haloScale: 1, dim: 1.16, parallax: 1.35, plane: 0.06, spread: 0.3 },
   ];
 
   const material = new THREE.ShaderMaterial({
