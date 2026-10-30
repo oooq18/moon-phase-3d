@@ -75,8 +75,8 @@ function fluxGain(magnitude) {
 
 function pointSize(magnitude) {
   const t = Math.min(1, Math.max(0, (magnitude + 1.4) / 8.4));
-  // 亮星更突出，和暗星拉开差距
-  return 1.6 + 11.0 * (1 - t) ** 2.2;
+  // 暗星是针尖点，亮星才大
+  return 1.3 + 10.0 * (1 - t) ** 2.4;
 }
 
 function haloAmount(magnitude) {
@@ -172,26 +172,25 @@ void main() {
   float r = sqrt(r2) * 2.0;
   float halo = clamp(vHalo, 0.0, 1.0);
 
-  // 三层光度结构，而不是一坨高斯：
-  // 核（ Airy 主瓣，很陡）+ 内晕（镜面散射）+ 外纱（大气辉光）
-  float core = exp(-r * r * mix(13.0, 5.2, halo));
-  float wing = exp(-r * r * 2.6) * smoothstep(0.02, 0.5, halo);
-  float veil = exp(-r * r * 1.05) * smoothstep(0.3, 0.92, halo);
+  // 核很锐（针尖点），只有亮星才有小光晕
+  float core = exp(-r * r * mix(22.0, 9.0, halo));
+  float wing = exp(-r * r * 4.5) * smoothstep(0.3, 0.8, halo);
+  float veil = exp(-r * r * 1.8) * smoothstep(0.55, 1.0, halo);
 
-  // 衍射十字芒：更明显
+  // 衍射十字芒：只有最亮星才有
   float u = abs(p.x);
   float v = abs(p.y);
-  float cross = exp(-v * 90.0) * exp(-u * 3.2)
-              + exp(-u * 90.0) * exp(-v * 3.2);
+  float cross = exp(-v * 110.0) * exp(-u * 4.5)
+              + exp(-u * 110.0) * exp(-v * 4.5);
   vec2 d = vec2((p.x + p.y) * 0.7071, (p.x - p.y) * 0.7071);
   float du = abs(d.x);
   float dv = abs(d.y);
-  float diag = exp(-dv * 120.0) * exp(-du * 5.5)
-             + exp(-du * 120.0) * exp(-dv * 5.5);
-  float spikeGate = smoothstep(0.08, 0.7, halo);
-  float spikes = cross * spikeGate * 0.9 + diag * spikeGate * spikeGate * 0.35;
+  float diag = exp(-dv * 140.0) * exp(-du * 6.5)
+             + exp(-du * 140.0) * exp(-dv * 6.5);
+  float spikeGate = smoothstep(0.3, 0.85, halo);
+  float spikes = cross * spikeGate * 0.7 + diag * spikeGate * spikeGate * 0.25;
 
-  float body = core + wing * 0.40 + veil * 0.15 + spikes;
+  float body = core + wing * 0.25 + veil * 0.08 + spikes;
   float alpha = clamp(body * vFlicker, 0.0, 1.0);
   if (alpha < 0.02) discard;
 
