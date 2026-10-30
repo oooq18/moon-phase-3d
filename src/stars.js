@@ -80,9 +80,10 @@ function pointSize(magnitude) {
 }
 
 function haloAmount(magnitude) {
-  if (magnitude > 2.3) return 0;
-  const u = Math.min(1, Math.max(0, (2.3 - magnitude) / 3.5));
-  return u * u;
+  // 门槛放宽到 3.5，更多中等星有小芒
+  if (magnitude > 3.5) return 0;
+  const u = Math.min(1, Math.max(0, (3.5 - magnitude) / 4.5));
+  return u * u * 0.9;
 }
 
 function placeOnSphere(rand, radius) {
@@ -290,6 +291,13 @@ function fillPopulation(rand, count, spec) {
     }
   }
 
+  // 疏区：随机 5-7 个方向，靠近这些方向的星变暗（模拟真实天空不均匀）
+  const voidCenters = [];
+  const nVoid = 5 + ((rand() * 3) | 0);
+  for (let c = 0; c < nVoid; c += 1) {
+    voidCenters.push(placeOnSphere(rand, 1));
+  }
+
   for (let i = 0; i < count; i += 1) {
     const u = rand();
     const radius = radiusMin + (u * u) * (radiusMax - radiusMin);
@@ -309,12 +317,23 @@ function fillPopulation(rand, count, spec) {
     } else {
       [x, y, z] = placeOnSphere(rand, radius);
     }
+
+    // 疏区：靠近空白区中心的星星亮度降低
+    const dirX = x / radius, dirY = y / radius, dirZ = z / radius;
+    let voidFactor = 1.0;
+    for (let v = 0; v < voidCenters.length; v += 1) {
+      const vc = voidCenters[v];
+      const d = dirX*vc[0] + dirY*vc[1] + dirZ*vc[2];
+      if (d > 0.93) { voidFactor = Math.min(voidFactor, 0.25); break; }
+      if (d > 0.85) { voidFactor = Math.min(voidFactor, 0.55); }
+    }
+
     positions[i * 3] = x;
     positions[i * 3 + 1] = y;
     positions[i * 3 + 2] = z;
 
     const magnitude = sampleMagnitude(rand, magMax, magMin);
-    const gain = fluxGain(magnitude) * dim * (0.88 + rand() * 0.2);
+    const gain = fluxGain(magnitude) * dim * (0.88 + rand() * 0.2) * voidFactor;
     const [r, g, b] = starTint(rand, magnitude);
     colors[i * 3] = r * gain;
     colors[i * 3 + 1] = g * gain;
