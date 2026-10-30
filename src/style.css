@@ -334,22 +334,13 @@ body {
   gap: 10px;
 }
 
-/* 双月区域：grid 0fr→1fr，高度平滑展开 */
+/* 双月区域：纯 opacity 淡入，不做高度补间 */
 .dual-wrap {
-  display: grid;
-  grid-template-rows: 0fr;
   opacity: 0;
-  transition:
-    grid-template-rows 450ms var(--ease),
-    opacity 300ms var(--ease);
+  transition: opacity 280ms var(--ease);
 }
 .hud:has(#mode-dual[aria-checked="true"]) .dual-wrap {
-  grid-template-rows: 1fr;
   opacity: 1;
-}
-.dual-wrap > * {
-  overflow: hidden;
-  min-height: 0;
 }
 
 .people[data-mode="single"] #person-1 {
