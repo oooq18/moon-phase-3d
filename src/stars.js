@@ -328,8 +328,8 @@ function fillPopulation(rand, count, spec) {
     for (let v = 0; v < voidCenters.length; v += 1) {
       const vc = voidCenters[v];
       const d = dirX*vc[0] + dirY*vc[1] + dirZ*vc[2];
-      if (d > 0.93) { voidFactor = Math.min(voidFactor, 0.25); break; }
-      if (d > 0.85) { voidFactor = Math.min(voidFactor, 0.55); }
+      if (d > 0.93) { voidFactor = Math.min(voidFactor, 0.4); break; }
+      if (d > 0.85) { voidFactor = Math.min(voidFactor, 0.7); }
     }
 
     positions[i * 3] = x;
@@ -428,9 +428,9 @@ export function createStars({ reducedMotion = false, mobile = false } = {}) {
   // 每次打开随机种子，看到不同星图
   const rand = mulberry32((Math.random() * 0xFFFFFFFF) >>> 0);
   const populations = [
-    { count: mobile ? 26000 : 50000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.84, parallax: 0.72, plane: 0.58, spread: 0.13 },
-    { count: mobile ? 2400 : 4200, radiusMin: 240, radiusMax: 380, magMin: 1.5, magMax: 4.2, depth: 0.48, sizeScale: 1.05, haloScale: 0.4, dim: 1.02, parallax: 1.0, plane: 0.2, spread: 0.22 },
-    { count: mobile ? 72 : 128, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.22, haloScale: 1, dim: 1.16, parallax: 1.35, plane: 0.06, spread: 0.3 },
+    { count: mobile ? 26000 : 50000, radiusMin: 500, radiusMax: 820, magMin: 3.6, magMax: 6.2, depth: 1, sizeScale: 1, haloScale: 0, dim: 0.9, parallax: 0.72, plane: 0.58, spread: 0.13 },
+    { count: mobile ? 3600 : 6000, radiusMin: 240, radiusMax: 380, magMin: 1.5, magMax: 4.2, depth: 0.48, sizeScale: 1.05, haloScale: 0.5, dim: 1.05, parallax: 1.0, plane: 0.2, spread: 0.22 },
+    { count: mobile ? 140 : 220, radiusMin: 118, radiusMax: 186, magMin: -1.46, magMax: 2.1, depth: 0, sizeScale: 1.3, haloScale: 1, dim: 1.2, parallax: 1.35, plane: 0.06, spread: 0.3 },
   ];
 
   const material = new THREE.ShaderMaterial({
