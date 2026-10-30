@@ -58,10 +58,9 @@ function spectralKelvin(rand, magnitude) {
 
 function starTint(rand, magnitude) {
   const [r, g, b] = kelvinToRgb(spectralKelvin(rand, magnitude));
-  // Bright stars keep a cool or warm tint. Faint ones fall back toward white,
-  // the way scotopic vision washes color out of the field.
-  const sat = magnitude < 1 ? 0.8 : magnitude < 2.6 ? 0.52 : magnitude < 4.4 ? 0.3 : 0.14;
-  const s = Math.min(0.92, Math.max(0.08, sat + (rand() - 0.5) * 0.06));
+  // 亮星颜色更明显（红巨星橙、蓝矮星蓝），暗星仍偏白
+  const sat = magnitude < 0.5 ? 1.0 : magnitude < 2 ? 0.78 : magnitude < 4 ? 0.38 : 0.16;
+  const s = Math.min(1.0, Math.max(0.08, sat + (rand() - 0.5) * 0.08));
   const nr = 0.84;
   const ng = 0.86;
   const nb = 0.92;
@@ -76,7 +75,8 @@ function fluxGain(magnitude) {
 
 function pointSize(magnitude) {
   const t = Math.min(1, Math.max(0, (magnitude + 1.4) / 8.4));
-  return 2.15 + 5.8 * (1 - t) ** 1.85;
+  // 亮星更突出，和暗星拉开差距
+  return 1.6 + 11.0 * (1 - t) ** 2.2;
 }
 
 function haloAmount(magnitude) {
@@ -154,7 +154,7 @@ void main() {
   float atten = clamp(pow(200.0 / dist, 0.5), 0.84, 2.2);
   float layer = mix(1.12, 0.96, clamp(aDepth, 0.0, 1.0));
   float px = max(uPixelRatio, 1.0);
-  gl_PointSize = clamp(aSize * atten * layer * flick, 1.9, 9.0) * px;
+  gl_PointSize = clamp(aSize * atten * layer * flick, 1.4, 14.0) * px;
   gl_Position = projectionMatrix * mv;
 }
 `;
@@ -282,12 +282,34 @@ function fillPopulation(rand, count, spec) {
   const twinkles = new Float32Array(count);
   const depths = new Float32Array(count);
 
+  // 星团中心：只对最亮层（depth≈0）生效，随机 3-4 个点
+  const clusterCenters = [];
+  if (depth < 0.1) {
+    const n = 3 + ((rand() * 2) | 0);
+    for (let c = 0; c < n; c += 1) {
+      clusterCenters.push(placeOnSphere(rand, 1));
+    }
+  }
+
   for (let i = 0; i < count; i += 1) {
     const u = rand();
     const radius = radiusMin + (u * u) * (radiusMax - radiusMin);
-    const [x, y, z] = plane > 0 && rand() < plane
-      ? placeInBand(rand, radius, spread)
-      : placeOnSphere(rand, radius);
+
+    // 最亮层随机生成 3-4 个星团，约 1/3 的亮星聚在星团附近
+    let x, y, z;
+    if (depth < 0.1 && i < count * 0.38 && clusterCenters.length) {
+      const c = clusterCenters[(rand() * clusterCenters.length) | 0];
+      const spread = 0.09;
+      x = c[0] + (rand() - 0.5) * spread * radius;
+      y = c[1] + (rand() - 0.5) * spread * radius;
+      z = c[2] + (rand() - 0.5) * spread * radius;
+      const len = Math.sqrt(x*x+y*y+z*z) || 1;
+      x = x/len*radius; y = y/len*radius; z = z/len*radius;
+    } else if (plane > 0 && rand() < plane) {
+      [x, y, z] = placeInBand(rand, radius, spread);
+    } else {
+      [x, y, z] = placeOnSphere(rand, radius);
+    }
     positions[i * 3] = x;
     positions[i * 3 + 1] = y;
     positions[i * 3 + 2] = z;
