@@ -58,15 +58,17 @@
       <div class="people" id="people" data-mode="single">
         <div class="person is-active" data-index="0">
           <input id="name-0" class="name-field" type="text" maxlength="16" placeholder="姓名" autocomplete="off" enterkeyhint="done" aria-label="左侧姓名，可不填" />
-          <button type="button" class="person-pick" id="pick-0" aria-pressed="true">
+          <label class="person-pick" id="pick-0" aria-pressed="true">
             <span class="person-when" id="when-0"></span>
-          </button>
+            <input type="date" class="person-date-input" data-index="0" min="1000-01-01" max="9999-12-31" tabindex="-1" aria-hidden="true" />
+          </label>
         </div>
         <div class="person" data-index="1" id="person-1">
           <input id="name-1" class="name-field" type="text" maxlength="16" placeholder="姓名" autocomplete="off" enterkeyhint="done" aria-label="右侧姓名，可不填" />
-          <button type="button" class="person-pick" id="pick-1" aria-pressed="false">
+          <label class="person-pick" id="pick-1" aria-pressed="false">
             <span class="person-when" id="when-1"></span>
-          </button>
+            <input type="date" class="person-date-input" data-index="1" min="1000-01-01" max="9999-12-31" tabindex="-1" aria-hidden="true" />
+          </label>
         </div>
       </div>
 

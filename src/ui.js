@@ -37,6 +37,10 @@ export function mountUI(root, initialDate, onEvent) {
   const nameInputs = [root.querySelector('#name-0'), root.querySelector('#name-1')];
   const whenLabels = [root.querySelector('#when-0'), root.querySelector('#when-1')];
   const picks = [root.querySelector('#pick-0'), root.querySelector('#pick-1')];
+  const personDateInputs = [
+    root.querySelector('.person-date-input[data-index="0"]'),
+    root.querySelector('.person-date-input[data-index="1"]'),
+  ];
   const cards = [...root.querySelectorAll('.person')];
 
   const minDate = MIN_CIVIL_ISO;
@@ -150,14 +154,21 @@ export function mountUI(root, initialDate, onEvent) {
       identityMarks[index].classList.toggle('is-active', index === active);
       cards[index].classList.toggle('is-active', index === active);
       picks[index].setAttribute('aria-pressed', index === active ? 'true' : 'false');
+      const personIso = formatISODateShanghai(entry.date);
+      if (document.activeElement !== personDateInputs[index] && personDateInputs[index].value !== personIso) {
+        personDateInputs[index].value = personIso;
+      }
       if (document.activeElement !== nameInputs[index] && nameInputs[index].value !== entry.name) {
         nameInputs[index].value = entry.name;
       }
     });
   }
 
+  function emitTo(index, date, live) {
+    onEvent({ type: 'date', index, date: new Date(date.getTime()), live });
+  }
   function emit(date, live) {
-    onEvent({ type: 'date', index: active, date: new Date(date.getTime()), live });
+    emitTo(active, date, live);
   }
 
   function step(days) {
@@ -179,20 +190,22 @@ export function mountUI(root, initialDate, onEvent) {
     onEvent({ type: 'mode', mode: 'dual' });
   });
 
-  picks.forEach((button, index) => {
-    button.addEventListener('click', () => {
-      if (mode !== 'dual') return;
-      if (index !== active) {
+  // 双月：透明 date input 盖在日期按钮上，点击直接弹原生日历
+  personDateInputs.forEach((input, index) => {
+    input.addEventListener('focus', () => {
+      if (mode === 'dual' && index !== active) {
         onEvent({ type: 'active', index });
       }
-      // 选中这个人后直接弹出日期选择器，就地修改 ta 的日期
-      try {
-        if (typeof dateInput.showPicker === 'function') dateInput.showPicker();
-        else dateInput.focus();
-      } catch {
-        dateInput.focus();
-      }
     });
+    const commit = () => {
+      const raw = input.value.trim();
+      if (!isCivilIsoInRange(raw)) return;
+      const picked = withShanghaiYMD(current, raw);
+      if (formatISODateShanghai(picked) !== raw) return;
+      if (isSameShanghaiDate(picked, new Date())) emitTo(index, new Date(), true);
+      else emitTo(index, picked, false);
+    };
+    input.addEventListener('change', commit);
   });
 
   nameInputs.forEach((input, index) => {
