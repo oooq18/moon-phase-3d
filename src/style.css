@@ -329,14 +329,27 @@ body {
    ========================================================================== */
 
 .people {
-  display: none;
+  display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.people[data-mode="dual"] {
-  display: flex;
-  animation: fade-in 300ms var(--ease) 80ms both;
+/* 双月展开：grid 0fr→1fr 平滑过渡高度 */
+.dual-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 450ms var(--ease),
+    opacity 300ms var(--ease);
+}
+.hud:has(#mode-dual[aria-checked="true"]) .dual-wrap {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.dual-wrap > * {
+  overflow: hidden;
+  min-height: 0;
 }
 
 .people[data-mode="single"] #person-1 {

@@ -229,7 +229,7 @@ function boot(gl) {
   // 起始时它正好藏在第一颗背后（沿视线略微后移，避免共面深度冲突），
   // 随后随分离量一起被推开——看起来是连续的物理运动，而不是凭空浮现。
   // 相机距离同步插值，所以画面不会因为构图目标突变而"跳一下"。
-  const PAIR_MS = reduceMotion ? 0 : 900;
+  const PAIR_MS = reduceMotion ? 0 : 650;
   let pairBlend = viewMode === 'dual' ? 1 : 0;
   let pairFrom = pairBlend;
   let pairTo = pairBlend;
