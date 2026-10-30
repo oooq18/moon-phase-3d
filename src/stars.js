@@ -252,10 +252,10 @@ void main() {
   float dust = smoothstep(0.7, 0.24, fine);
   float knots = smoothstep(0.58, 0.9, grain);
   float band = ribbon * 0.85 + shoulder * 0.32;
-  float alpha = band * clouds * (0.2 + 0.8 * dust) * (0.14 + 0.11 * knots) * uFade;
-  // 地平线方向加一层淡暖黄辉光（大气光害感）
+  float alpha = band * clouds * (0.2 + 0.8 * dust) * (0.05 + 0.04 * knots) * uFade;
+  // 地平线方向加一层极淡暖黄辉光
   float horizon = smoothstep(-0.2, 0.15, dir.y) * smoothstep(0.5, 0.0, dir.y);
-  alpha += horizon * 0.05 * uFade;
+  alpha += horizon * 0.025 * uFade;
   vec3 cool = vec3(0.42, 0.52, 0.76);
   vec3 warm = vec3(0.78, 0.66, 0.5);
   vec3 col = mix(cool, warm, clamp(ribbon * (0.3 + 0.7 * dust), 0.0, 1.0));
