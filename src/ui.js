@@ -56,53 +56,30 @@ export function mountUI(root, initialDate, onEvent) {
 
   function fadeText(el, text) {
     if (el.textContent === text) return;
-    const previous = timers.get(el);
-    if (previous) window.clearTimeout(previous);
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce || el.textContent === '—' || el.textContent === '') {
-      el.textContent = text;
-      return;
-    }
-    el.classList.add('is-dim');
-    const timer = window.setTimeout(() => {
-      el.textContent = text;
-      el.classList.remove('is-dim');
-      timers.delete(el);
-    }, 400);
-    timers.set(el, timer);
+    el.textContent = text;
+    if (reduce || el.textContent === '—' || el.textContent === '') return;
+    // 重新触发 swap-up 动画
+    el.classList.remove('swap');
+    void el.offsetWidth;
+    el.classList.add('swap');
   }
 
   function paintMetric(el, number, unit) {
     const signature = `${number}\u0000${unit}`;
     if (el.dataset.signature === signature) return;
-    const apply = () => {
-      el.dataset.signature = signature;
-      el.replaceChildren();
-      const num = document.createElement('span');
-      num.className = 'num';
-      num.textContent = number;
-      el.append(num);
-      if (unit) {
-        const mark = document.createElement('span');
-        mark.className = 'unit';
-        mark.textContent = unit;
-        el.append(mark);
-      }
-      el.classList.remove('is-dim');
-    };
-    const previous = timers.get(el);
-    if (previous) window.clearTimeout(previous);
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce || !el.dataset.signature) {
-      apply();
-      return;
+    el.dataset.signature = signature;
+    el.replaceChildren();
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = number;
+    el.append(num);
+    if (unit) {
+      const mark = document.createElement('span');
+      mark.className = 'unit';
+      mark.textContent = unit;
+      el.append(mark);
     }
-    el.classList.add('is-dim');
-    const timer = window.setTimeout(() => {
-      apply();
-      timers.delete(el);
-    }, 400);
-    timers.set(el, timer);
   }
 
   function paintPoem(next) {
