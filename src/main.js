@@ -179,6 +179,8 @@ try {
     antialias: true,
     alpha: false,
     powerPreference: 'high-performance',
+    // 截图分享时需要 drawing buffer 不被浏览器清掉
+    preserveDrawingBuffer: true,
   });
 } catch (error) {
   showWebGLError();
