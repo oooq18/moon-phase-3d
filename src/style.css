@@ -1,11 +1,8 @@
 /* ==========================================================================
-   观月 · 月相观测台 —— 精简版 UI
+   观月 —— 三页
    --------------------------------------------------------------------------
-   设计原则：月球是主角，UI 退到幕后。
-   - 底部单列纵向信息，不再左右分栏。
-   - 控件默认无框无填充，像印刷品上的文字；hover/聚焦才浮现。
-   - 三个指标合并一行，用 · 分隔，去掉发丝线。
-   - 双月的姓名输入默认隐藏，激活时淡入。
+   月球是主角。观月只留月相、一句诗和日期。
+   日子与分享叠在同一片天空上，控件仍是无框文字。
    ========================================================================== */
 
 :root {
@@ -29,6 +26,7 @@
   /* expo-out：快起慢收，有呼吸感 */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --tab-h: calc(49px + env(safe-area-inset-bottom));
   --t-fast: 220ms;
   --t-mid: 480ms;
   --t-slow: 720ms;
@@ -133,26 +131,44 @@ body {
   bottom: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 0 max(32px, env(safe-area-inset-right)) calc(22px + env(safe-area-inset-bottom)) max(32px, env(safe-area-inset-left));
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
   pointer-events: none;
   animation: fade-in 900ms var(--ease) both;
 }
 
-.hud > * { pointer-events: auto; }
-
 .fallback {
   margin: 0;
+  padding: 0 max(32px, env(safe-area-inset-right)) 8px max(32px, env(safe-area-inset-left));
   color: var(--muted);
   font-family: var(--mono);
   font-size: 0.66rem;
   letter-spacing: 0.04em;
   line-height: 1.5;
+  pointer-events: auto;
 }
 .fallback[hidden] { display: none !important; }
 
 /* ---------- 信息区 ---------- */
+
+.page-observe {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 0 max(32px, env(safe-area-inset-right)) 16px max(32px, env(safe-area-inset-left));
+  pointer-events: none;
+}
+
+.page-observe > * { pointer-events: auto; }
+
+#panel[data-page="dates"] .page-observe,
+#panel[data-page="share"] .page-observe,
+#panel[data-page="dates"] .page-observe *,
+#panel[data-page="share"] .page-observe * {
+  visibility: hidden !important;
+}
 
 .info {
   display: flex;
@@ -160,6 +176,8 @@ body {
   gap: 8px;
   min-width: 0;
 }
+
+.eyebrow[hidden] { display: none !important; }
 
 .eyebrow {
   margin: 0;
@@ -176,7 +194,7 @@ body {
   margin: 0;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: clamp(2rem, 3.4vw, 2.7rem);
+  font-size: clamp(2.5rem, 4.6vw, 3.6rem);
   font-weight: 400;
   letter-spacing: 0.16em;
   line-height: 1.06;
@@ -299,18 +317,11 @@ body {
 
 /* ---------- 双月身份行 ---------- */
 
-.identity {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 18px;
-  margin: 0;
-  color: var(--faint);
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  line-height: 1.5;
+/* 姓名和日期已经在人物行里，不再另起一行重复 */
+.identity,
+.identity[hidden] {
+  display: none !important;
 }
-.identity[hidden] { display: none !important; }
 .identity span { transition: color var(--t-fast) var(--ease); }
 .identity span.is-active { color: var(--ink-2); }
 
@@ -334,16 +345,15 @@ body {
   gap: 10px;
 }
 
-/* 双月区域：纯 opacity 淡入，不做高度补间 */
 .dual-wrap {
-  opacity: 0;
-  transition: opacity 280ms var(--ease);
-}
-.hud:has(#mode-dual[aria-checked="true"]) .dual-wrap {
-  opacity: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
-.people[data-mode="single"] #person-1 {
+.people[data-mode="single"] #person-1,
+.people[data-mode="single"] .person-pick {
   display: none;
 }
 
@@ -417,37 +427,138 @@ body {
 }
 
 /* ==========================================================================
-   底部操作栏
+   日子 / 分享：叠在观月占位之上，不把月亮顶走
    ========================================================================== */
 
-.dock {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-/* 双月模式下只隐藏左边的日期导航条，"今天"按钮保留（把当前选中人设回今天） */
-.hud:has(#mode-dual[aria-checked="true"]) .nav {
+.sheet {
   position: absolute;
-  opacity: 0;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: var(--tab-h);
+  padding: 0 max(32px, env(safe-area-inset-right)) 12px max(32px, env(safe-area-inset-left));
   pointer-events: none;
 }
 
-.nav,
-.actions {
+.sheet[hidden] { display: none !important; }
+
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  width: min(34rem, 100%);
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  padding: 22px 0 4px;
+  pointer-events: auto;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.22) 62%, transparent 100%);
+}
+
+.date-slot {
+  display: flex;
+  align-items: center;
+  min-height: 0;
+}
+
+#date-slot-observe:empty {
+  min-height: 32px;
+}
+
+#panel:has(#mode-dual[aria-checked="true"]) #date-slot-dates {
+  display: none;
+}
+
+#date-slot-dates:empty {
+  display: none;
+}
+
+/* 双月在「日子」里用每人自己的日期，不再叠一条公共步进 */
+#panel:has(#mode-dual[aria-checked="true"]) #page-dates .nav {
+  display: none;
+}
+
+.nav {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.share-lead {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.45rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  line-height: 1.3;
+}
+
+.share-note {
+  margin: 0;
+  max-width: 22rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+}
+
+.tabbar {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: var(--tab-h);
+  padding: 4px max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left));
+  border-top: 1px solid rgba(240, 236, 227, 0.12);
+  background: rgba(12, 12, 12, 0.62);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  pointer-events: auto;
+}
+
+.tab {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(240, 236, 227, 0.42);
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.tab svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tab[aria-selected="true"] { color: var(--ink); }
+
+.tab:focus-visible {
+  outline: 1px solid rgba(246, 243, 236, 0.6);
+  outline-offset: -4px;
+  border-radius: 10px;
 }
 
 /* 统一文字按钮外观：无框、透明底，hover 微放大，按压回弹 */
 .mode-switch button,
 .cluster button,
 #today,
-#share,
 .glyph,
 .person-pick {
   appearance: none;
@@ -463,16 +574,12 @@ body {
 }
 
 .mode-switch button:hover,
-#today:hover,
-#share:hover,
 .glyph:hover:not(:disabled),
 .person-pick:hover {
   transform: scale(1.06);
 }
 
 .mode-switch button:active,
-#today:active,
-#share:active,
 .glyph:active:not(:disabled),
 .person-pick:active {
   transform: scale(0.94);
@@ -537,17 +644,29 @@ button[hidden] { display: none !important; }
 }
 #today:active { transform: none; }
 
-/* 分享按钮：稍亮 */
+/* 分享：这一页上唯一的主按钮 */
 #share {
-  height: 32px;
-  padding: 0 12px;
-  font-size: 0.76rem;
-  color: var(--ink);
+  appearance: none;
+  height: 40px;
+  margin-top: 4px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(246, 243, 236, 0.92);
+  color: #16140f;
+  font-family: var(--sans);
+  font-size: 0.84rem;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+  touch-action: manipulation;
 }
+#share:hover { background: #fbf8f2; }
+#share:active { transform: scale(0.98); }
 #share:disabled {
-  color: var(--muted);
-  opacity: 0.5;
+  background: rgba(246, 243, 236, 0.28);
+  color: rgba(246, 243, 236, 0.72);
   cursor: default;
+  transform: none;
 }
 
 /* ---------- 日期导航 ---------- */
@@ -696,13 +815,18 @@ button[hidden] { display: none !important; }
 
 @media (max-width: 860px) {
   .hud {
-    gap: 12px;
-    padding: 18px 20px calc(16px + env(safe-area-inset-bottom));
-    background: linear-gradient(to top, rgba(4, 5, 8, 0.9) 0%, rgba(4, 5, 8, 0.66) 60%, transparent 100%);
+    background: linear-gradient(to top, rgba(4, 5, 8, 0.78) 0%, rgba(4, 5, 8, 0.28) 46%, transparent 100%);
+  }
+
+  .page-observe,
+  .sheet,
+  .fallback {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
   }
 
   .phase-name {
-    font-size: 1.8rem;
+    font-size: 2.15rem;
     letter-spacing: 0.12em;
   }
 
@@ -716,16 +840,12 @@ button[hidden] { display: none !important; }
   }
   .metrics dd { font-size: 0.88rem; }
 
-  .dock {
-    justify-content: space-between;
-  }
-
-  .nav, .actions { gap: 2px; }
+  #date-slot-observe:empty { min-height: 40px; }
 
   .mode-switch button,
   .glyph,
   .date-field input,
-  #today, #share {
+  #today {
     height: 40px;
   }
   .glyph { width: 40px; }
@@ -751,7 +871,7 @@ button[hidden] { display: none !important; }
     letter-spacing: 0.3em;
   }
   .phase-name {
-    font-size: 1.6rem;
+    font-size: 2rem;
     letter-spacing: 0.1em;
   }
   .eyebrow {
@@ -765,50 +885,57 @@ button[hidden] { display: none !important; }
 }
 
 /* ---------- 横屏矮视口 ---------- */
+@media (min-width: 960px) {
+  .page-observe,
+  .sheet,
+  .fallback {
+    padding-left: max(56px, env(safe-area-inset-left));
+    padding-right: max(56px, env(safe-area-inset-right));
+  }
+}
+
 @media (max-height: 520px) and (orientation: landscape) {
+  :root { --tab-h: calc(42px + env(safe-area-inset-bottom)); }
   .brand h1 {
     font-size: 0.86rem;
     letter-spacing: 0.24em;
   }
   .hud {
+    background: linear-gradient(to top, rgba(4, 5, 8, 0.72) 0%, transparent 100%);
+  }
+  .page-observe {
     flex-direction: row;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 0 28px;
-    padding: 0 20px calc(12px + env(safe-area-inset-bottom));
-    background: linear-gradient(to top, rgba(4, 5, 8, 0.82) 0%, transparent 100%);
+    gap: 16px;
   }
   .info { flex: 0 1 auto; }
   .phase-name {
-    font-size: 1.3rem;
+    font-size: 1.35rem;
     letter-spacing: 0.1em;
   }
   .poem {
-    max-width: 14rem;
+    max-width: 16rem;
     font-size: 0.68rem;
     line-height: 1.45;
   }
+  .sheet-body { max-height: 46vh; gap: 8px; }
   .identity { display: none; }
   .metrics { gap: 4px 10px; }
   .metrics dd { font-size: 0.8rem; }
   .metrics dt { font-size: 0.54rem; }
-  .dock {
-    flex: 0 0 auto;
-    width: auto;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 6px;
-  }
   .mode-switch button,
   .glyph,
   .date-field input,
-  #today, #share {
+  #today {
     height: 28px;
     font-size: 0.7rem;
   }
+  #share { height: 32px; }
   .glyph { width: 28px; font-size: 0.95rem; }
   .name-field { height: 26px; }
   .person-pick { height: 26px; }
+  #date-slot-observe:empty { min-height: 28px; }
 }
 
 /* ---------- 降低动效 ---------- */
