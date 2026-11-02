@@ -98,7 +98,9 @@ export function mountUI(root, initialDate, onEvent) {
     active = state.active;
     const person = state.people[active];
     current = new Date(person.date.getTime());
-    eyebrow.textContent = state.festival ? '中秋' : '月相';
+    const festival = Boolean(state.festival);
+    eyebrow.textContent = festival ? '中秋' : '';
+    eyebrow.hidden = !festival;
     const info = person.info;
     fadeText(phaseName, info ? info.name : '无法计算');
     paintPoem(info ? person.poem : null);
@@ -226,6 +228,39 @@ export function mountUI(root, initialDate, onEvent) {
       step(1);
     }
   });
+
+  const shell = root.querySelector('#panel');
+  const observePage = root.querySelector('.page-observe');
+  const tabs = [...root.querySelectorAll('.tabbar [data-tab]')];
+  const sheets = [...root.querySelectorAll('.sheet')];
+  const dateNav = root.querySelector('#date-nav');
+  const dateSlots = {
+    observe: root.querySelector('#date-slot-observe'),
+    dates: root.querySelector('#date-slot-dates'),
+  };
+
+  function showPage(name) {
+    const page = name === 'dates' || name === 'share' ? name : 'observe';
+    if (shell) shell.dataset.page = page;
+    for (const sheet of sheets) sheet.hidden = sheet.dataset.page !== page;
+    for (const tab of tabs) {
+      const on = tab.dataset.tab === page;
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    const slot = page === 'dates' ? dateSlots.dates : dateSlots.observe;
+    if (dateNav && slot && dateNav.parentElement !== slot) slot.append(dateNav);
+    if (observePage) {
+      const away = page !== 'observe';
+      observePage.setAttribute('aria-hidden', away ? 'true' : 'false');
+      if (away) observePage.setAttribute('inert', '');
+      else observePage.removeAttribute('inert');
+    }
+  }
+
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => showPage(tab.dataset.tab));
+  }
+  showPage('observe');
 
   return {
     render,
